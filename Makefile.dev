@@ -1,0 +1,40 @@
+#
+# Makefile for development
+#
+
+PY_SRC_PATH=$(HOME)/projects/rasmus/python
+
+RASMUS_SRC_FILES = __init__ \
+                   plotting \
+                   tablelib \
+                   timer \
+                   treelib \
+                   treelib_parser \
+                   treelib_lex \
+                   treelib_tab \
+	           textdraw \
+                   stats \
+                   svg \
+                   util 
+
+COMPBIO_SRC_FILES = __init__ \
+                    birthdeath \
+                    fasta \
+                    phylo \
+                    seqlib
+
+
+# copy subset of python modules for packaging with spidir
+includepy:
+	mkdir -p dlcoal/deps/rasmus
+	touch dlcoal/deps/__init__.py
+	for mod in $(RASMUS_SRC_FILES); do \
+		cp $(PY_SRC_PATH)/rasmus/$${mod}.py dlcoal/deps/rasmus/; \
+	done
+
+	mkdir -p dlcoal/deps/compbio
+	for mod in $(COMPBIO_SRC_FILES); do \
+		cp $(PY_SRC_PATH)/compbio/$${mod}.py dlcoal/deps/compbio/; \
+	done
+
+
