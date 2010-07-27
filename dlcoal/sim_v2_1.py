@@ -159,24 +159,25 @@ def sim_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forcetime):
     sim_walk(gtree, stree.root, gtree.root, freq) # should mutate gtree
     
     
-    ## TEMPORARILY REMOVED FOR DEBUGGING PURPOSES
-    ##  this does not seem to work correctly as-is
-    ##  perhaps needs a looping behavior to remove 'new' leaves
-    ##   (i.e., those created by removing extinctions 
-    ##     but that are not themselves extinct)
-#    # remove dead branches and single children (inside last method)
-#    extant_leaves = []
-#    for leaf in gtree.leaves():
-#        if leaf.data['freq'] > 0.0:
-#            extant_leaves.append(leaf.name)
-#    gtree = treelib.subtree_by_leaf_names(gtree, extant_leaves)
+    # remove dead branches and single children (inside last method)
+    # note that the simplifyRoot argument was added to the treelib methods
+    #  so that gtree.root.dist is always equal to 0.0 (and this allows the
+    #  root to have a single child)
+    #  if this behavior is undesired later, we can simply remove the argument
+    #  and the root will be collapsed (and have >0 dist)
+    extant_leaves = []
+    for leaf in gtree.leaves():
+        if leaf.data['freq'] > 0.0:
+            extant_leaves.append(leaf.name)
+    gtree = treelib.subtree_by_leaf_names(gtree, extant_leaves, \
+                                            simplifyRoot=False)
     
     return gtree
 
 
 
 if __name__ == "__main__":
-    stree = treelib.read_tree('samples/simple.stree')
+    stree = treelib.read_tree('simple.stree')
     popsize = 1e4
     freq = 1e0
     dr = 2.1
@@ -192,40 +193,22 @@ if __name__ == "__main__":
     print
     treelib.draw_tree(gtree, scale=1)
     print
+    
     if len(gtree.nodes) > 1:
-        extant_count = 0
         for leaf in gtree.leaves():
-            if leaf.data['freq'] > 0.0:
-                extant_count += 1
-                print leaf.name, treelib.find_dist(gtree, gtree.root.name, leaf.name), leaf.data['freq']
-        if extant_count == 0:
-            print 'all leaves are dead'
+            print leaf.name, treelib.find_dist(gtree,gtree.root.name,leaf.name), leaf.data['freq']
     else:
         print 'only the root remains'
-
-
-### DEPRECIATED CODE (internal to sim_tree())
-
-#    # DEPRECIATED; use treelib.subtree_by_leaf_names instead
-#    def remove_duds(gtree, gnode):
-#        if len(gnode.children) == 0:
-#            parent = gnode.parent
-#            gtree.remove(gnode) # operate on gtree, not stree
-#            if parent:
-#                return remove_duds(gtree, parent)
-#        return gtree
-
-##    # DEPRECIATED; use treelib.remove_single_children instead
-#    def remove_single_child_nodes(gtree):
-#        callagain = False
-#        for node in gtree.preorder():
-#            if node.parent and len(node.children) == 1:
-#                parent = node.parent
-#                child = node.children[0]
-#                newdist = node.dist + child.dist
-#                gtree.remove(node)
-#                gtree.add_child(parent, child)
-#                child.dist = newdist
-#                callagain = True
-#                break
-#        return remove_single_child_nodes(gtree) if callagain else gtree
+    
+#    if len(gtree.nodes) > 1:
+#        extant_count = 0
+#        for leaf in gtree.leaves():
+#            if leaf.data['freq'] > 0.0:
+#                extant_count += 1
+#                print leaf.name, treelib.find_dist(gtree, gtree.root.name, leaf.name), leaf.data['freq']
+#        if extant_count == 0:
+#            print 'all leaves are dead'
+#    else:
+#        print 'only the root remains'
+#    
+#    print gtree.root.dist
