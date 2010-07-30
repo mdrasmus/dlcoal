@@ -110,8 +110,8 @@ def sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forceti
                 # do not process D/L event; determine whether at force or speciation
                 if time_until_force < remaining_s_dist:
                     ## FREQUENCY UPDATE EVENT
-                    # sample a new frequency (note scaling to years from myr)
-                    newp = coal.sample_freq_CDF(p, popsize, forcetime * 1e6)
+                    # sample a new frequency (note scaling to years from myr) # edit: not any more
+                    newp = coal.sample_freq_CDF(p, popsize, forcetime) # * 1e6)
                       # TODO: if we decide not to reset time_until_force at 
                       #  speciation events, the newp generation will need to be
                       #  altered in some form (probably using a new variable)
@@ -130,8 +130,8 @@ def sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forceti
                     ## SPECIATION EVENT
                     # separate into separate root, non-root speciations
                     if gnode.parent: # gnode not the root
-                        # sample a new frequency (note scaling to years from myr)
-                        newp = coal.sample_freq_CDF(p, popsize, remaining_s_dist * 1e6)
+                        # sample a new frequency (note scaling to years from myr) # edit: not any more
+                        newp = coal.sample_freq_CDF(p, popsize, remaining_s_dist) # * 1e6)
                         # create new_gnode for this event
                         new_gnode = treelib.TreeNode(gtree.new_name())
                         new_g_walk_time = g_walk_time + remaining_s_dist
@@ -305,7 +305,7 @@ def generate_extras(stree, gtree, freqdup, \
 ## based on dlcoal.sample_dlcoal
 ## uses sim_DLILS_gene_tree to generate a locus tree
 ## samples a multicoal tree, etc., as in the initial function
-def sample_dlcoal_no_fix(stree, n, freq, duprate, lossrate, freqdup, freqloss,\
+def sample_dlcoal_no_ifix(stree, n, freq, duprate, lossrate, freqdup, freqloss,\
                             forcetime, namefunc=lambda x: x, \
                             remove_single=True, name_internal="n", minsize=0):
     """Sample a gene tree from the DLCoal model using the new simulator"""
@@ -328,14 +328,16 @@ def sample_dlcoal_no_fix(stree, n, freq, duprate, lossrate, freqdup, freqloss,\
     else:
         # simulate coalescence
         
-        # TODO: probably requires locus_tree dists in years (or generations), not myr
-        locus_tree_copy = locus_tree.copy()
-        for node in locus_tree_copy:
-            node.dist *= 1e6 # myr -> yr
+        # edit: taken care of in preprocessing (outside of this file)
+#        # TODO: probably requires locus_tree dists in years (or generations), not myr
+#        locus_tree_copy = locus_tree.copy()
+#        for node in locus_tree_copy:
+#            node.dist *= 1e6 # myr -> yr
         
         # daughters already chosen: locus_extras['daughters']
         daughters = locus_extras['daughters']
-        coal_tree, coal_recon = dlcoal.sample_multicoal_tree(locus_tree_copy, n,
+        # removed locus_tree_copy from below
+        coal_tree, coal_recon = dlcoal.sample_multicoal_tree(locus_tree, n,
                                         daughters=daughters, namefunc=namefunc)
 
         # clean up coal tree
@@ -356,9 +358,10 @@ def sample_dlcoal_no_fix(stree, n, freq, duprate, lossrate, freqdup, freqloss,\
              "coal_recon": coal_recon,
              "daughters": daughters}
 
-    # TODO: this may need to be changed/fixed
-    for cnode in coal_tree:
-        cnode.dist /= 1e6
+    # edit: removed with locus_tree scaling removal
+#    # TODO: this may need to be changed/fixed
+#    for cnode in coal_tree:
+#        cnode.dist /= 1e6
 
     return coal_tree, extra
 
@@ -371,24 +374,27 @@ if __name__ == "__main__":
 #    print stree.root.name, stree.root.dist
     popsize = 1e4
     freq = 1e0
-    dr = 1.1
-    lr = 1.0
+    dr = 1.1 / 1e6
+    lr = 1.0 / 1e6
     freqdup = .07
     freqloss = .05
-    forcetime = 1e0
+    forcetime = 1e6 #1e0  # updated with species tree branch conversion
     
-    coal_tree, coal_extras = sample_dlcoal_no_fix(stree, popsize, freq, dr, lr, freqdup, freqloss,\
-                            forcetime, minsize=3)
+    for node in stree:
+        node.dist *= 1e6
+    
+    coal_tree, coal_extras = sample_dlcoal_no_ifix(stree, popsize, freq, \
+                                dr, lr, freqdup, freqloss,forcetime, minsize=3)
     locus_tree = coal_extras['locus_tree']
     
     for daughter in coal_extras['daughters']:
         print daughter.name
     
-    treelib.draw_tree(stree,scale=2)
+    treelib.draw_tree(stree,scale=.000002)
     print
-    treelib.draw_tree(locus_tree,scale=2)
+    treelib.draw_tree(locus_tree,scale=.000002)
     print
-    treelib.draw_tree(coal_tree,scale=2)
+    treelib.draw_tree(coal_tree,scale=.000002)
     print
     
 #    gtree, extras = sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forcetime)
