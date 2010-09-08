@@ -19,6 +19,7 @@ RASMUS_SRC_FILES = __init__ \
 
 COMPBIO_SRC_FILES = __init__ \
                     birthdeath \
+		    coal \
                     fasta \
                     phylo \
                     seqlib

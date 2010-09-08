@@ -122,6 +122,13 @@ def corr(lst1, lst2):
         return 1e1000
 
 
+def corr_pvalue(r, n):
+    """Returns the signficance of correlation > r with n samples"""
+
+    t = r / sqrt((1 - r*r) / float(n - 2))
+    return rpy.r.pt(-t, n-2)
+    
+
 def qqnorm(data, plot=None):
     """Quantile-quantile plot"""
     
@@ -134,6 +141,42 @@ def qqnorm(data, plot=None):
     else:
         plot.plot(data2, norm)
         return plot
+
+
+def entropy(probs, base=2):
+    """Shannon's entropy"""
+
+    return - sum(p * log(p, base) for p in probs if p > 0.0)
+
+def cross_entropy(p, q, base=2):
+    try:
+        return - sum(i * log(j, base) for i,j in izip(p, q) if i > 0.0)
+    except OverflowError:
+        return util.INF
+
+def kl_div(p, q):
+    """Compute the KL divergence for two discrete distributions"""
+    return cross_entropy(p, q) - entropy(p)
+
+def akaike_ic(lnl, k):
+    """Akaike information criterion"""
+    return 2 * k - 2 * lnl
+
+def akaike_icc(lnl, n, k):
+    """Akaike information criterion with second order correction
+       Good for small sample sizes
+    """
+    return akaike_ic(lnl, k) + 2*k*(k+1) / (n - k - 1)
+
+
+def bayesian_ic(lnl, n, k):
+    """Bayesian information criterion
+
+       lnl -- ln(L)
+       n   -- number of data points
+       k   -- number of parameters
+    """
+    return -2 * lnl + k * log(n)
 
 
 
@@ -589,40 +632,6 @@ def sample(weights):
     return low
     
 
-    
-def chyper(m, n, M, N, report=0):
-    '''
-    calculates cumulative probability based on
-    hypergeometric distribution
-    over/under/both (report = 0/1/2)
-    (uses /seq/compbio02/software-Linux/misc/chyper)
-    '''
-
-    assert( (type(m) == type(n) == type(M) == type(N) == int)
-            and m <= n and m <= M and n <= N)
-
-    command = "chyper %d %d %d %d 2>/dev/null" % (m, n, M, N)
-    stream = os.popen(command)
-    val = stream.read()
-    if val == '':
-        raise Exception("error in chyper")
-    else:
-        val = val.strip()
-        vals = map(float, val.split(' ')[4:6])
-        
-    if report == 0:
-        #p-val for over-repr.
-        return vals[0]
-    elif report == 1:
-        #p-val for under-repr.
-        return vals[1]
-    elif report == 2:
-        #tuple (over, under)
-        return vals
-    else:
-        raise "unknown option"
-
-
 def rhyper(m, n, M, N, report=0):
     '''
     calculates cumulative probability based on
@@ -656,6 +665,7 @@ def rhyper(m, n, M, N, report=0):
         return r.phyper(m-1, M, N-M, n, lower_tail=False), r.phyper(m, M, N-M, n)
     else:
         raise "unknown option"
+
 
 def cdf(vals):
     """Computes the CDF of a list of values"""
@@ -1397,8 +1407,6 @@ def _solveCubic_test(n=100):
         c = random.normalvariate(10, 5)
 
         test(a, b, c)
-    
-    
 
 
 
