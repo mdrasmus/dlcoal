@@ -21,20 +21,9 @@ def test_dlcoal_tree(locus_tree, n, daughters, nsamples):
     tops = {}
     
     for i in xrange(nsamples):
+        if i % (nsamples // 100) == 0:
+                print i
 
-        '''
-        # use rejection sampling
-        while True:
-            coal_tree, coal_recon = coal.sample_multicoal_tree(
-                locus_tree, n, namefunc=lambda x: x)
-            lineages = coal.count_lineages_per_branch(
-                coal_tree, coal_recon, locus_tree)
-            for daughter in daughters:
-                if lineages[daughter][1] != 1:
-                    break
-            else:
-                break
-        '''
         coal_tree, coal_recon = dlcoal.sample_locus_coal_tree(
             locus_tree, n, leaf_counts=None,
             daughters=daughters,
@@ -114,12 +103,168 @@ class DLCoal (unittest.TestCase):
         lossrate = .000011
 
         daughters = set([locus_tree.nodes["C_8"].parent])
-        nsamples = 10000
+        nsamples = 5000
         print
         draw_tree_names(locus_tree, maxlen=8)
         
         tab, tops = test_dlcoal_tree(locus_tree, n, daughters, nsamples)
         print repr(tab[:20].get(cols=["simple_top", "percent", "prob"]))
+
+        x = map(log, tab.cget("percent"))
+        y = map(log, tab.cget("prob"))
+        p = plot(x, y)
+        p.plot([min(x), max(x)], [min(x), max(x)], style="lines")
+        show_plot()
+        
+
+    
+    def test_top(self):
+
+        stree = treelib.parse_newick(
+        "(((A:200, E:200):800, B:1000):500, (C:700, D:700):800);")
+        gene2species = lambda x: x.split("_")[0]
+        duprate = 0.00012
+        lossrate = 0.000011
+        n = 500
+        nsamples = 10000
+
+        # compare top hist with simpler rejection sampling
+        tops = {}
+        tops2 = {}
+    
+        for i in xrange(nsamples):
+            if i % (nsamples // 100) == 0:
+                print i
+                
+            # use rejection sampling
+            tree, ex = dlcoal.sample_dlcoal(
+                stree, n, duprate, lossrate,
+                  remove_single=False, name_internal="n",
+                  minsize=0, reject=False)
+
+            # sample tree
+            tree2, ex2 = dlcoal.sample_dlcoal(
+                stree, n, duprate, lossrate,
+                  remove_single=False, name_internal="n",
+                  minsize=0, reject=False)
+
+            top = phylo.hash_tree(tree, gene2species)
+            top2 = phylo.hash_tree(tree2, gene2species)
+            
+            tops.setdefault(top, [0, tree])[0] += 1
+            tops.setdefault(top2, [0, tree2])
+            
+            tops2.setdefault(top2, [0, tree2])[0] += 1
+            tops2.setdefault(top, [0, tree])
+
+        
+        keys = tops.keys()
+        x = [safelog(tops[i][0], default=0) for i in keys]
+        y = [safelog(tops2[i][0], default=0) for i in keys]
+
+        util.printcols(sorted([[i[0], i[1][0]] for i in tops2.items()],
+                              key=lambda i: i[1], reverse=True)[:30])
+        
+
+        p = plot(x, y)
+        p.plot([min(x), max(x)], [min(x), max(x)], style="lines")
+        show_plot()
+    
+        
+    
+    def test_top_flies(self):
+
+        gene2species = lambda x: x.split("_")[0]
+        stree = treelib.parse_newick(
+        """
+(
+  (
+    (
+      (
+        (
+          (
+            dmel:5.32,
+            (
+              dsec:1.89,
+              dsim:1.89
+            ):3.43
+          ):5.91,
+          (
+            dere:8.57,
+            dyak:8.57
+          ):2.66
+        ):42.17,
+        dana:53.40
+      ):2.40,
+      (
+        dpse:1.37,
+        dper:1.37
+      ):54.43
+    ):6.69,
+    dwil:62.49
+  ):1.02,
+  (
+    (
+      dmoj:32.74,
+      dvir:32.74
+    ):4.37,
+    dgri:37.11
+  ):26.40
+);
+        """)
+
+        for node in stree:
+            node.dist *= 1e6
+
+        gentime = .10
+        duprate = 0.0012 / (1e6 / gentime)
+        lossrate = 0.0011 / (1e6 / gentime)
+        n = 1e6
+        nsamples = 100
+
+        # compare top hist with simpler rejection sampling
+        tops = {}
+        tops2 = {}
+    
+        for i in xrange(nsamples):
+            if i % (nsamples // 100) == 0:
+                print i
+                
+            # use rejection sampling
+            tree, ex = dlcoal.sample_dlcoal(
+                stree, n, duprate, lossrate,
+                  remove_single=False, name_internal="n",
+                  minsize=0, reject=False)
+
+            # sample tree
+            tree2, ex2 = dlcoal.sample_dlcoal(
+                stree, n, duprate, lossrate,
+                  remove_single=False, name_internal="n",
+                  minsize=0, reject=False)
+
+            top = phylo.hash_tree(tree, gene2species)
+            top2 = phylo.hash_tree(tree2, gene2species)
+            
+            tops.setdefault(top, [0, tree])[0] += 1
+            tops.setdefault(top2, [0, tree2])
+            
+            tops2.setdefault(top2, [0, tree2])[0] += 1
+            tops2.setdefault(top, [0, tree])
+
+        
+        keys = tops.keys()
+        x = [safelog(tops[i][0], default=0) for i in keys]
+        y = [safelog(tops2[i][0], default=0) for i in keys]
+
+        util.printcols(sorted([[i[0], i[1][0]] for i in tops2.items()],
+                              key=lambda i: i[1], reverse=True)[:30])
+        
+
+        p = plot(x, y)
+        p.plot([min(x), max(x)], [min(x), max(x)], style="lines")
+        show_plot()
+    
+
 
 
 

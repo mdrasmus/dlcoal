@@ -5,15 +5,20 @@ import sys
 from os.path import dirname
 import optparse
 
+# import dlcoal library
 try:
     import dlcoal
 except ImportError:
     sys.path.append(dirname(dirname(sys.argv[0])))
     import dlcoal
 
-from rasmus.common import *
-from compbio import birthdeath
+# import rasmus, compbio libs
+from rasmus import util,  treelib
+from compbio import phylo, birthdeath
 
+
+#=============================================================================
+# options
 
 o = optparse.OptionParser()
 o.add_option("-s", "--stree", dest="stree", metavar="SPECIES_TREE")
@@ -38,26 +43,30 @@ conf, args = o.parse_args()
 
 
 #=============================================================================
-
 # read inputs
 treefile = args[0]
-stree = read_tree(conf.stree)
+stree = treelib.read_tree(conf.stree)
 smap = phylo.read_gene2species(conf.smap)
-coal_tree = read_tree(treefile)
+coal_tree = treelib.read_tree(treefile)
 
+# convert species tree into generations
 for node in stree:
     node.dist *= 1e6 / conf.gentime
 duprate = conf.duprate / (1e6 / conf.gentime)
 lossrate = conf.lossrate / (1e6 / conf.gentime)
-
 times = birthdeath.get_tree_timestamps(stree)
 
+
+# perform reconciliation
+#  NOTE: popsize is multiplied by 2 to account for diploid species
 maxp, maxrecon = dlcoal.dlcoal_recon(
-    coal_tree, stree, smap, conf.popsize, duprate, lossrate,
+    coal_tree, stree, smap, 2*conf.popsize, duprate, lossrate,
     premean=.5 * times[stree.root],
     nsamples=10,
     nsearch=conf.iter)
 
+# write outputs
 out = util.replace_ext(treefile, conf.inext, conf.outext)
 dlcoal.write_dlcoal_recon(out, coal_tree, maxrecon)
+
 

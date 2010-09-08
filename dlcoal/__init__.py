@@ -26,8 +26,6 @@ import spidir
 import spidir.topology_prior
 
 
-#reload(phylo)
-
 
 #=============================================================================
 # reconciliation
@@ -373,11 +371,12 @@ def prob_locus_coal_recon_topology(tree, recon, locus_tree, n, daughters):
 
 def sample_dlcoal(stree, n, duprate, lossrate, namefunc=lambda x: x,
                   remove_single=True, name_internal="n",
-                  minsize=0):
+                  minsize=0, reject=False):
     """Sample a gene tree from the DLCoal model"""
 
     # generate the locus tree
     while True:
+        # TODO: does this take a namefunc?
         locus_tree, locus_recon, locus_events = \
                     birthdeath.sample_birth_death_gene_tree(
             stree, duprate, lossrate)
@@ -399,9 +398,13 @@ def sample_dlcoal(stree, n, duprate, lossrate, namefunc=lambda x: x,
             if locus_events[node] == "dup":
                 daughters.add(node.children[random.randint(0, 1)])
 
-        coal_tree, coal_recon = sample_locus_coal_tree(locus_tree, n,
-                                                       daughters=daughters,
-                                                       namefunc=namefunc)
+        if reject:
+            # use slow rejection sampling (for testing)
+            coal_tree, coal_recon = sample_locus_coal_tree_reject(
+                locus_tree, n, daughters=daughters, namefunc=namefunc)
+        else:
+            coal_tree, coal_recon = sample_locus_coal_tree(
+                locus_tree, n, daughters=daughters, namefunc=namefunc)
 
         # clean up coal tree
         if remove_single:
@@ -415,7 +418,7 @@ def sample_dlcoal(stree, n, duprate, lossrate, namefunc=lambda x: x,
         except:
             print
             treelib.draw_tree_names(coal_tree, maxlen=8)
-            locus_tree.write()
+            treelib.draw_tree_names(locus_tree, maxlen=8)
             raise
 
 
@@ -470,176 +473,84 @@ def sample_locus_coal_tree(stree, n, leaf_counts=None,
     counts = dict((n.name, 0) for n in stree)
     counts.update(leaf_counts)
 
-    # init reconciliation, events
-    recon = {}
-    subtrees = {}
+    # init lineage counts
+    lineages = {stree.root: [None, None]}
+    for node in stree.leaves():
+        lineages[node] = [leaf_counts[node.name], None]
+    for node in daughters:
+        if node not in lineages:
+            lineages[node] = [None, 1]
+        else:
+            lineages[node][1] = 1
+        
 
-    
-    def walk(node, leaves, stubs):
+    def get_subtree(node, leaves, leaf_counts2):
+        """collects info of subtree rooted at node"""
         if node.is_leaf():
-            leaves.append(node)
+            leaves.add(node)
+            leaf_counts2[node.name] = leaf_counts[node.name]
         else:
             for child in node.children:
                 if child in daughters:
-                    leaves.append(child)
-                    stubs.append(child)
+                    leaves.add(child)
+                    leaf_counts2[child.name] = 1
                 else:
-                    walk(child, leaves, stubs)
+                    get_subtree(child, leaves, leaf_counts2)
 
+    # loop through subtrees
     for snode in chain(daughters, [stree.root]):
         # determine leaves of the coal subtree
-        leaves = []
-        sstubs = []
-        walk(snode, leaves, sstubs)
-
+        leaves = set()
         leaf_counts2 = {}
-        for leaf in leaves:
-            if leaf.name in leaf_counts:
-                # leaf species node
-                leaf_counts2[leaf.name] = leaf_counts[leaf.name]
-            else:
-                # daughter node
-                leaf_counts2[leaf.name] = 1
-
-        if snode.parent:
-            subtree, subrecon = coal.sample_bounded_multicoal_tree(
-                stree, popsizes, stimes[snode.parent],
-                leaf_counts=leaf_counts2,
-                namefunc=namefunc, sleaves=leaves,
-                sroot=snode)
-        else:
-            subtree, subrecon = coal.sample_multicoal_tree(
-                stree, popsizes, leaf_counts=leaf_counts2, sroot=stree.root,
-                sleaves=leaves,
-                namefunc=namefunc)
-
-        # determine stubs
-        stubs = []
-        for node in subtree:
-            if node.is_leaf() and subrecon[node] in sstubs:
-                stubs.append((node, subrecon[node]))
-        subtrees[snode] = (subtree, stubs)
-        recon.update(subrecon)
-
-
-    # stitch subtrees together
-    tree = treelib.Tree()
-
-    # add all nodes to total tree
-    for snode, (subtree, stubs) in subtrees.iteritems():
-        tree.merge_names(subtree)
-
-    # stitch leaves of the subtree to children subtree lineages
-    for snode, (subtree, stubs) in subtrees.iteritems():
-        for leaf, snode in stubs:
-            child_subtree = subtrees[snode][0]
-            tree.add_child(leaf, child_subtree.root)
-
-    # set root
-    tree.root = subtrees[stree.root][0].root
-
-    # name leaves
-    for leaf in tree.leaves():
-        tree.rename(leaf.name, namefunc(recon[leaf].name))
-    
-    return tree, recon
-
-
-
-def sample_locus_coal_tree_old(stree, n, leaf_counts=None,
-                               daughters=set(),
-                               namefunc=None):
-    """
-    Returns a gene tree from a locus coalescence process
-    n -- population size (int or dict)
-         If n is a dict it must map from species name to population size
-    """
-
-    # TODO: needs proper sampling from BMC
-
-    # initialize vector for how many genes per extant species
-    if leaf_counts is None:
-        leaf_counts = dict((l, 1) for l in stree.leaf_names())
-
-    # initialize function for generating new gene names
-    if namefunc is None:
-        spcounts = dict((l, 1) for l in stree.leaf_names())
-        def namefunc(sp):
-            name = sp + "_" + str(spcounts[sp])
-            spcounts[sp] += 1
-            return name
-
-    # initialize population sizes
-    popsizes = coal.init_popsizes(stree, n)
-
-    # init gene counts
-    counts = dict((n.name, 0) for n in stree)
-    counts.update(leaf_counts)
-
-    # init reconciliation, events
-    recon = {}
-
-    subtrees = {}
-
-    # loop through species tree
-    for snode in stree.postorder():        
-        # simulate population for one branch
-        k = counts[snode.name]
-        if snode in daughters:
-            # daughter branch, use bounded coalescent
-            subtree = coal.sample_bounded_coal_tree(
-                k, popsizes[snode.name], snode.dist, capped=True)
-            lineages = set(subtree.root)
-        elif snode.parent:            
-            # non basal branch
-            subtree, lineages = coal.sample_censored_coal_tree(
-                k, popsizes[snode.name], snode.dist, capped=True)
-        else:
-            # basal branch
-            subtree = coal.sample_coal_tree(k, popsizes[snode.name])
-            lineages = set(subtree.root)
-        subtrees[snode] = (subtree, lineages)
-        if snode.parent:
-            counts[snode.parent.name] += len(lineages)
-        for node in subtree:
-            recon[node] = snode
-
-
-    # stitch subtrees together
-    tree = treelib.Tree()
-
-    # add all nodes to total tree
-    for snode, (subtree, lineages) in subtrees.iteritems():
-        tree.merge_names(subtree)
-        if snode.parent:
-            tree.remove(subtree.root)        
-            del recon[subtree.root]
-    
-    for snode in stree:
-        if not snode.is_leaf():
-            subtree, lineages = subtrees[snode]
-
-            # get lineages from child subtrees
-            lineages2 = chain(*[subtrees[child][1]
-                                for child in snode.children])
-
-            # ensure leaves are randomly attached
-            leaves = subtree.leaves()
-            random.shuffle(leaves)
-
-            # stitch leaves of the subtree to children subtree lineages
-            for leaf, lineage in izip(leaves, lineages2):
-                tree.add_child(leaf, lineage)
-
-
-    # set root
-    tree.root = subtrees[stree.root][0].root    
-
-    # name leaves
-    for leaf in tree.leaves():
-        tree.rename(leaf.name, namefunc(recon[leaf].name))
+        get_subtree(snode, leaves, leaf_counts2)
         
+        if snode.parent:
+            T  = stimes[snode.parent]
+        else:
+            T = None
+
+        # calc table
+        prob_counts = coal.calc_prob_counts_table(
+            leaf_counts2, T, stree, popsizes,
+            sroot=snode, sleaves=leaves, stimes=stimes)
+        
+        # sample lineage counts
+        try:
+            coal.sample_lineage_counts(snode, leaves, popsizes, stimes, T,
+                                       lineages, prob_counts)
+        except:
+            print snode.name
+            treelib.draw_tree_names(stree, maxlen=8)
+            util.print_dict(lineages, key=lambda x: x.name)
+            raise
+
+
+    # sample coal times
+    tree, recon = coal.coal_cond_lineage_counts(
+        lineages, stree.root, stree.leaves(),
+        popsizes, stimes, None, namefunc)
+    
     return tree, recon
+
+
+def sample_locus_coal_tree_reject(locus_tree, n, leaf_counts=None,
+                                  daughters=set(),
+                                  namefunc=None):
+    
+    # use rejection sampling
+    while True:
+        coal_tree, coal_recon = coal.sample_multicoal_tree(
+            locus_tree, n, namefunc=lambda x: x)
+        lineages = coal.count_lineages_per_branch(
+            coal_tree, coal_recon, locus_tree)
+        for daughter in daughters:
+            if lineages[daughter][1] != 1:
+                break
+        else:
+            break
+
+    return coal_tree, coal_recon
+
 
 
 
@@ -741,6 +652,252 @@ def read_dlcoal_recon(filename, stree,
 
 #=============================================================================
 # OLD
+
+
+
+def sample_locus_coal_tree2(stree, n, leaf_counts=None,
+                           daughters=set(),
+                           namefunc=None):
+    """
+    Returns a gene tree from a locus coalescence process
+    n -- population size (int or dict)
+         If n is a dict it must map from species name to population size
+    """
+    
+    # initialize vector for how many genes per extant species
+    if leaf_counts is None:
+        leaf_counts = dict((l, 1) for l in stree.leaf_names())
+
+    # initialize function for generating new gene names
+    if namefunc is None:
+        spcounts = dict((l, 1) for l in stree.leaf_names())
+        def namefunc(sp):
+            name = sp + "_" + str(spcounts[sp])
+            spcounts[sp] += 1
+            return name
+
+    stimes = treelib.get_tree_timestamps(stree)
+
+    # initialize population sizes
+    popsizes = coal.init_popsizes(stree, n)
+
+    # init gene counts
+    counts = dict((n.name, 0) for n in stree)
+    counts.update(leaf_counts)
+
+    # init reconciliation, events
+    recon = {}
+    subtrees = {}
+
+    print "locus"
+    treelib.draw_tree_names(stree, maxlen=8)
+
+    
+    def walk(node, leaves, stubs):
+        if node.is_leaf():
+            leaves.append(node)
+        else:
+            for child in node.children:
+                if child in daughters:
+                    leaves.append(child)
+                    stubs.append(child)
+                else:
+                    walk(child, leaves, stubs)
+
+    for snode in chain(daughters, [stree.root]):
+        # determine leaves of the coal subtree
+        leaves = []
+        sstubs = []
+        walk(snode, leaves, sstubs)
+
+        leaf_counts2 = {}
+        for leaf in leaves:
+            if leaf.name in leaf_counts:
+                # leaf species node
+                leaf_counts2[leaf.name] = leaf_counts[leaf.name]
+            else:
+                # daughter node
+                leaf_counts2[leaf.name] = 1
+
+        if snode.parent:
+            subtree, subrecon = coal.sample_bounded_multicoal_tree(
+                stree, popsizes, stimes[snode.parent],
+                leaf_counts=leaf_counts2,
+                namefunc=namefunc, sleaves=leaves,
+                sroot=snode)
+            
+        else:
+            subtree, subrecon = coal.sample_multicoal_tree(
+                stree, popsizes, leaf_counts=leaf_counts2, sroot=stree.root,
+                sleaves=leaves,
+                namefunc=namefunc)
+
+        # determine stubs
+        stubs = []
+        for node in subtree:
+            if node.is_leaf() and subrecon[node] in sstubs:
+                stubs.append((node, subrecon[node]))
+        subtrees[snode] = (subtree, stubs)
+        recon.update(subrecon)
+
+        # DEBUG
+        # give unique leaf names
+        #for leaf in subtree.leaves():
+        #    if isinstance(leaf.name, basestring):
+        #        print "l", leaf.name
+        #        #tree.rename(leaf.name, namefunc(recon[leaf].name))
+
+        #nodes = list(subtree.preorder())
+        #print "subtree", [x.name for x in nodes]
+        #print "stubs", stubs
+        #treelib.draw_tree_names(subtree, maxlen=8)
+
+
+
+    # stitch subtrees together
+    tree = treelib.Tree()
+
+    # add all nodes to total tree
+    visited = set()
+    for snode, (subtree, stubs) in subtrees.iteritems():
+        tree.merge_names(subtree)
+        #print "names", tree.nodes.keys()
+        #for name in subtree.nodes:
+        #    assert name not in visited, name
+        #    visited.add(name)
+
+    # stitch leaves of the subtree to children subtree lineages
+    for snode, (subtree, stubs) in subtrees.iteritems():
+        for leaf, snode in stubs:
+            child_subtree = subtrees[snode][0]
+            tree.add_child(leaf, child_subtree.root)
+
+    # set root
+    tree.root = subtrees[stree.root][0].root
+
+    # name leaves
+    #for leaf in tree.leaves():
+    #    tree.rename(leaf.name, namefunc(recon[leaf].name))
+
+
+    # DEBUG
+    try:
+        #nodes = list(tree.preorder())
+        #print util.print_dict(util.hist_dict(x.name for x in tree.postorder()))
+        #print util.print_dict(util.hist_dict(x.name for x in nodes))
+        #print sorted(util.hist_dict(x.name for x in nodes).items(),
+        #             key=lambda x: x[1], reverse=True)[0]
+
+        #print "root", tree.root.name
+        #treelib.draw_tree_names(tree, maxlen=8)
+        
+        treelib.assert_tree(tree)
+    except:
+        print set(tree.nodes.keys()) - set(x.name for x in tree.postorder())
+        print set(x.name for x in tree.postorder()) - set(tree.nodes.keys())
+        
+        raise
+    
+    return tree, recon
+
+
+
+def sample_locus_coal_tree_old(stree, n, leaf_counts=None,
+                               daughters=set(),
+                               namefunc=None):
+    """
+    Returns a gene tree from a locus coalescence process
+    n -- population size (int or dict)
+         If n is a dict it must map from species name to population size
+    """
+
+    # TODO: needs proper sampling from BMC
+
+    # initialize vector for how many genes per extant species
+    if leaf_counts is None:
+        leaf_counts = dict((l, 1) for l in stree.leaf_names())
+
+    # initialize function for generating new gene names
+    if namefunc is None:
+        spcounts = dict((l, 1) for l in stree.leaf_names())
+        def namefunc(sp):
+            name = sp + "_" + str(spcounts[sp])
+            spcounts[sp] += 1
+            return name
+
+    # initialize population sizes
+    popsizes = coal.init_popsizes(stree, n)
+
+    # init gene counts
+    counts = dict((n.name, 0) for n in stree)
+    counts.update(leaf_counts)
+
+    # init reconciliation, events
+    recon = {}
+
+    subtrees = {}
+
+    # loop through species tree
+    for snode in stree.postorder():        
+        # simulate population for one branch
+        k = counts[snode.name]
+        if snode in daughters:
+            # daughter branch, use bounded coalescent
+            subtree = coal.sample_bounded_coal_tree(
+                k, popsizes[snode.name], snode.dist, capped=True)
+            lineages = set(subtree.root)
+        elif snode.parent:            
+            # non basal branch
+            subtree, lineages = coal.sample_censored_coal_tree(
+                k, popsizes[snode.name], snode.dist, capped=True)
+        else:
+            # basal branch
+            subtree = coal.sample_coal_tree(k, popsizes[snode.name])
+            lineages = set(subtree.root)
+        subtrees[snode] = (subtree, lineages)
+        if snode.parent:
+            counts[snode.parent.name] += len(lineages)
+        for node in subtree:
+            recon[node] = snode
+
+
+    # stitch subtrees together
+    tree = treelib.Tree()
+
+    # add all nodes to total tree
+    for snode, (subtree, lineages) in subtrees.iteritems():
+        tree.merge_names(subtree)
+        if snode.parent:
+            tree.remove(subtree.root)        
+            del recon[subtree.root]
+    
+    for snode in stree:
+        if not snode.is_leaf():
+            subtree, lineages = subtrees[snode]
+
+            # get lineages from child subtrees
+            lineages2 = chain(*[subtrees[child][1]
+                                for child in snode.children])
+
+            # ensure leaves are randomly attached
+            leaves = subtree.leaves()
+            random.shuffle(leaves)
+
+            # stitch leaves of the subtree to children subtree lineages
+            for leaf, lineage in izip(leaves, lineages2):
+                tree.add_child(leaf, lineage)
+
+
+    # set root
+    tree.root = subtrees[stree.root][0].root    
+
+    # name leaves
+    for leaf in tree.leaves():
+        tree.rename(leaf.name, namefunc(recon[leaf].name))
+        
+    return tree, recon
+
+
 
 '''
 def dlcoal_recon_old(tree, stree, gene2species,
