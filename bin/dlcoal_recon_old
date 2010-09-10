@@ -1,24 +1,10 @@
 #!/usr/bin/env python
 # DLCoal Reconciliation
 
-import sys
-from os.path import dirname
 import optparse
-
-# import dlcoal library
-try:
-    import dlcoal
-except ImportError:
-    sys.path.append(dirname(dirname(sys.argv[0])))
-    import dlcoal
-
-# import rasmus, compbio libs
-from rasmus import util,  treelib
-from compbio import phylo, birthdeath
-
-
-#=============================================================================
-# options
+from rasmus.common import *
+from compbio import birthdeath
+from dlcoal import dlcoal_old as dlcoal
 
 o = optparse.OptionParser()
 o.add_option("-s", "--stree", dest="stree", metavar="SPECIES_TREE")
@@ -32,50 +18,37 @@ o.add_option("-L", "--lossrate", dest="lossrate", metavar="LOSS_RATE",
 o.add_option("-g", "--gentime", dest="gentime", metavar="GENRATION_TIME",
              type="float")
 o.add_option("-i", "--iter", dest="iter", metavar="ITERATIONS",
-             type="int", default=10)
+             type="int", default=100)
 o.add_option("-I", "--inext", dest="inext", metavar="INPUT_EXT",
              default="")
 o.add_option("-O", "--outext", dest="outext", metavar="OUTPUT_EXT",
              default="dlcoal")
 
-g = optparse.OptionGroup(o, "Miscellaneous")
-o.add_option_group(g)
-g.add_option("", "--nsamples", dest="nsamples", metavar="NUM_SAMPLES",
-             type="int", default=100)
-
 
 conf, args = o.parse_args()
 
-if len(args) == 0:
-    o.print_help()
-    sys.exit(1)
-    
 
 #=============================================================================
+
 # read inputs
 treefile = args[0]
-stree = treelib.read_tree(conf.stree)
+stree = read_tree(conf.stree)
 smap = phylo.read_gene2species(conf.smap)
-coal_tree = treelib.read_tree(treefile)
+coal_tree = read_tree(treefile)
 
-# convert species tree into generations
 for node in stree:
     node.dist *= 1e6 / conf.gentime
 duprate = conf.duprate / (1e6 / conf.gentime)
 lossrate = conf.lossrate / (1e6 / conf.gentime)
+
 times = treelib.get_tree_timestamps(stree)
 
-
-# perform reconciliation
-#  NOTE: popsize is multiplied by 2 to account for diploid species
 maxp, maxrecon = dlcoal.dlcoal_recon(
-    coal_tree, stree, smap, 2*conf.popsize, duprate, lossrate,
+    coal_tree, stree, smap, conf.popsize, duprate, lossrate,
     premean=.5 * times[stree.root],
-    nsamples=conf.nsamples,
+    nsamples=10,
     nsearch=conf.iter)
 
-# write outputs
 out = util.replace_ext(treefile, conf.inext, conf.outext)
 dlcoal.write_dlcoal_recon(out, coal_tree, maxrecon)
-
 

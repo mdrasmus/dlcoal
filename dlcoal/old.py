@@ -130,7 +130,7 @@ class DLCoalRecon (object):
         phylo.add_implied_spec_nodes(proposal["locus_tree"], self.stree,
                                      proposal["locus_recon"],
                                      proposal["locus_events"])
-        p = prob_dlcoal_recon_topology(self.coal_tree,
+        p = prob_dlcoal_recon_topology_old(self.coal_tree,
                                        proposal["coal_recon"],
                                        proposal["locus_tree"],
                                        proposal["locus_recon"],
