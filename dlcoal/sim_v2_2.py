@@ -223,8 +223,8 @@ def sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forceti
     for leaf in gtree.leaves():
         if leaf.data['freq'] > 0.0:
             extant_leaves.append(leaf.name)
-    gtree = treelib.subtree_by_leaf_names(gtree, extant_leaves, \
-                                            removeSingleChildren=False)
+    gtree = treelib.subtree_by_leaf_names(gtree, extant_leaves,
+                                          keep_single=True)
     remove_single_children(gtree) # allows for correct logging of events
     extras = generate_extras(stree, gtree, freqdup)
     return gtree, extras
