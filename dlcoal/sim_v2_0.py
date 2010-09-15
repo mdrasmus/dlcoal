@@ -164,7 +164,7 @@ def sim_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forcetime):
 
 
 if __name__ == "__main__":
-    stree = treelib.read_tree('samples/simple.stree')
+    stree = treelib.read_tree('simple.stree')
     popsize = 1e4
     freq = 1e0
     dr = 2.1
