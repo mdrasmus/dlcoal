@@ -3,8 +3,10 @@
 #
 
 PY_SRC_PATH=$(HOME)/projects/rasmus/python
+SPIMAP_SRC_PATH=$(HOME)/projects/spimap/python/
 
 RASMUS_SRC_FILES = __init__ \
+                   linked_list \
                    plotting \
                    tablelib \
                    timer \
@@ -15,6 +17,7 @@ RASMUS_SRC_FILES = __init__ \
 	           textdraw \
                    stats \
                    svg \
+                   symbolic \
                    util 
 
 COMPBIO_SRC_FILES = __init__ \
@@ -24,6 +27,9 @@ COMPBIO_SRC_FILES = __init__ \
                     phylo \
                     seqlib
 
+SPIMAP_SRC_FILES = __init__ \
+                   ctypes_export \
+                   topology_prior
 
 # copy subset of python modules for packaging with spidir
 includepy:
@@ -38,4 +44,7 @@ includepy:
 		cp $(PY_SRC_PATH)/compbio/$${mod}.py dlcoal/deps/compbio/; \
 	done
 
-
+	mkdir -p dlcoal/deps/spidir
+	for mod in $(SPIMAP_SRC_FILES); do \
+		cp $(SPIMAP_SRC_PATH)/spidir/$${mod}.py dlcoal/deps/spidir/; \
+	done

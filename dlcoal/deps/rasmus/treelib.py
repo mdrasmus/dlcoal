@@ -111,6 +111,11 @@ class TreeNode:
         out.write(str(self.dist))
     writeData = write_data
 
+    def __repr__(self):
+        """Returns a representation of the node"""
+
+        return "<node %s>" % self.name
+
 
 # class for managing branch data
 class BranchData (object):
@@ -1094,7 +1099,7 @@ def graph2tree(mat, root, closedset=None):
     return tree
 
 
-def remove_single_children(tree):
+def remove_single_children(tree, simplify_root=True):
     """
     Remove all nodes from the tree that have exactly one child
     
@@ -1106,15 +1111,6 @@ def remove_single_children(tree):
     removed = [node
                for node in tree
                if len(node.children) == 1 and node.parent]
-            
-
-    """
-    def walk(node):
-        if len(node.children) == 1 and node.parent:
-            removed.append(node)
-        node.recurse(walk)
-    walk(tree.root)
-    """
     
     # actually remove children
     for node in removed:
@@ -1132,7 +1128,7 @@ def remove_single_children(tree):
         del tree.nodes[node.name]
 
     # remove singleton from root
-    if len(tree.root.children) == 1:
+    if simplify_root and len(tree.root.children) == 1:
         oldroot = tree.root
         tree.root = tree.root.children[0]
         oldroot.children = []
@@ -1141,7 +1137,7 @@ def remove_single_children(tree):
         tree.root.dist += oldroot.dist
     
     return removed
-removeSingleChildren = remove_single_children
+
 
 
 def remove_exposed_internal_nodes(tree, leaves=None):
@@ -1160,23 +1156,22 @@ def remove_exposed_internal_nodes(tree, leaves=None):
         # wether to keep it
         stay = set()
         for leaf in tree.leaves():
-            if isinstance(leaf.name, str):
+            if isinstance(leaf.name, basestring):
                 stay.add(leaf)
     
     # post order traverse tree
     def walk(node):
         # keep a list of children to visit, since they may remove themselves
-        children = copy.copy(node.children)
-        for child in children:
+        for child in list(node.children):
             walk(child)
 
         if node.is_leaf() and node not in stay:
             tree.remove(node)
     walk(tree.root)
-removeExposedInternalNodes = remove_exposed_internal_nodes
 
 
-def subtree_by_leaf_names(tree, leaf_names, newCopy=False):
+
+def subtree_by_leaf_names(tree, leaf_names, keep_single=False, newCopy=False):
     """Returns a subtree with only the leaves specified"""
     
     if newCopy:
@@ -1184,12 +1179,13 @@ def subtree_by_leaf_names(tree, leaf_names, newCopy=False):
     
     remove_set = set(tree.leaf_names()) - set(leaf_names)
     for sp in remove_set:
-    	tree.remove(tree.nodes[sp])
+        tree.remove(tree.nodes[sp])
     remove_exposed_internal_nodes(tree, [tree.nodes[x] for x in leaf_names])
-    remove_single_children(tree)
+    if not keep_single:
+        remove_single_children(tree)
     
     return tree
-subtreeByLeafNames = subtree_by_leaf_names
+
 
 
 def reorder_tree(tree, tree2):
@@ -1235,7 +1231,7 @@ def reorder_tree(tree, tree2):
                 leaf_sets.append(walk(child))
 
             scores = [mean(util.mget(leaf_lookup, l)) for l in leaf_sets]
-            rank = util.sortrank(scores)
+            rank = util.sortindex(scores)
             node.children = util.mget(node.children, rank)
 
             # return union

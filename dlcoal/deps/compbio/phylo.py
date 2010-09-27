@@ -21,8 +21,6 @@ from rasmus import util
 from . import fasta
 
 
-# NOTE: camelCase names are DEPRECATED
-
 
 #=============================================================================
 # gene to species mapping functions
@@ -153,7 +151,6 @@ def label_events(gtree, recon):
     walk(gtree.root)
     
     return events
-labelEvents = label_events
 
 
 def label_events_node(node, recon):
@@ -164,7 +161,6 @@ def label_events_node(node, recon):
             return "spec"
     else:
         return "gene"
-labelEventsNode = label_events_node
 
 
 def find_loss_node(node, recon):
@@ -317,14 +313,19 @@ def find_orthologs(gtree, stree, recon, counts=True):
 
 
 
-def subset_recon(tree, recon):
+def subset_recon(tree, recon, events=None):
     """Ensure the reconciliation only refers to nodes in tree"""
 
     # get all nodes that are walkable
     nodes = set(tree.postorder())
-    for node, snode in recon.items():
+    for node in list(recon):
         if node not in nodes:
             del recon[node]
+    if events:
+        for node in list(events):
+            if node not in nodes:
+                del events[node]
+        
 
 
 #=============================================================================
@@ -613,7 +614,6 @@ def recon_root(gtree, stree, gene2species = gene2species,
         treelib.reroot(gtree, node1.name, newCopy=False)
     
     return gtree
-reconRoot = recon_root
 
 
 def midroot_recon(tree, stree, recon, events, params, generate):
@@ -682,8 +682,6 @@ def midroot_recon(tree, stree, recon, events, params, generate):
 
 
 
-
-
 def stree2gtree(stree, genes, gene2species):
     """Create a gene tree with the same topology as the species tree"""
     
@@ -738,18 +736,18 @@ def get_orthologs(tree, events):
 # Tree hashing
 #
 
-def hash_tree_compose(child_hashes):
+def hash_tree_compose(child_hashes, node):
     return "(%s)" % ",".join(child_hashes)
 
 
-def hash_tree(tree, smap = lambda x: x):
+def hash_tree(tree, smap=lambda x: x, compose=hash_tree_compose):
     def walk(node):
         if node.isLeaf():
             return smap(node.name)
         else:
             child_hashes = map(walk, node.children)
             child_hashes.sort()
-            return hash_tree_compose(child_hashes)
+            return compose(child_hashes, node)
     
     if isinstance(tree, treelib.Tree) or hasattr(tree, "root"):
         return walk(tree.root)
@@ -765,7 +763,7 @@ def hash_order_tree(tree, smap = lambda x: x):
             return smap(node.name)
         else:
             child_hashes = map(walk, node.children)
-            ind = util.sortrank(child_hashes)
+            ind = util.sortindex(child_hashes)
             child_hashes = util.mget(child_hashes, ind)
             node.children = util.mget(node.children, ind)
             return hash_tree_compose(child_hashes)
@@ -847,7 +845,6 @@ def find_branch_distrib(trees, stree, gene2species = gene2species,
     used = []
 
     for tree in trees:
-        #tree = reconRoot(tree, stree, gene2species, newCopy=False)
         recon = reconcile(tree, stree, gene2species)
         events = label_events(tree, recon)
         
@@ -1096,12 +1093,152 @@ def propose_random_nni(tree):
 
 
 #=============================================================================
+# reconciliation rearrangements
+
+def change_recon_up(recon, node, events=None):
+    """
+    Move the mapping of a node up one branch
+    """
+        
+    if events is not None and events[node] == "spec":
+        # promote speciation to duplication
+        # R'(v) = e(R(u))
+        events[node] = "dup"
+    else:
+        # R'(v) = p(R(u))
+        recon[node] = recon[node].parent
+
+
+def change_recon_down(recon, node, schild, events=None):
+    """
+    Move the mapping of a node down one branch
+    """
+
+    if events is not None and recon[node] == schild:
+        events[node] = "spec"
+    else:
+        recon[node] = schild
+
+
+def can_change_recon_up(recon, node, events=None):
+    """Returns True is recon can remap node one 'step' up"""
+
+    if events is not None and events[node] == "spec" and not node.is_leaf():
+        # promote speciation to duplication
+        return True
+    else:
+        # move duplication up one branch
+        rnode = recon[node]
+        prnode = rnode.parent
+
+        # rearrangement is valid if
+        return (not node.is_leaf() and 
+            prnode is not None and #  1. there is parent sp. branch
+            (node.parent is None or # 2. no parent to restrict move
+             rnode != recon[node.parent] # 3. not already matching parent
+             ))
+
+
+def enum_recon(tree, stree, depth=None,
+               step=0, preorder=None,
+               recon=None, events=None,
+               gene2species=None):
+    """
+    Enumerate reconciliations between a gene tree and a species tree
+    """
+    
+    if recon is None:
+        recon = reconcile(tree, stree, gene2species)
+        events = label_events(tree, recon)
+
+    if preorder is None:
+        preorder = list(tree.preorder())
+
+    # yield current recon
+    yield recon, events
+
+    if depth is None or depth > 0:
+        for i in xrange(step, len(preorder)):
+            node = preorder[i]
+            if can_change_recon_up(recon, node, events):
+                schild = recon[node]
+                change_recon_up(recon, node, events)
+            
+                # recurse
+                depth2 = depth - 1 if depth is not None else None
+                for r, e in enum_recon(tree, stree, depth2,
+                                       i, preorder,
+                                       recon, events):
+                    yield r, e
+            
+                change_recon_down(recon, node, schild, events)
+
+
+
+    
+'''
+class EnumRecon (object):
+    """
+    Enumerate reconciliations between a gene tree and species tree
+    """
+
+    def __init__(self, tree, stree, depth=1,
+                 step=-1, preorder=None,
+                 recon=None, events=None,
+                 gene2species=None):
+        self.tree = tree
+        self.stree = stree
+        self.depth = 1
+        self.step = step
+
+        if recon:
+            self.recon = recon
+            self.events = events
+        else:
+            self.recon = reconcile(tree, stree, gene2species)
+            self.events = label_events(tree, self.recon)
+
+        if preorder:
+            self.preorder = preorder
+        else:
+            self.preorder = list(tree.preorder())
+            
+        
+        self.sprev = None
+
+
+    def __iter__(self):
+        return self
+
+    
+    def next(self):
+        if self.step >= 0:
+            # perform a rearrangement
+            if self.step >= len(self.preorder):
+                # no more mappings to move up, take 1 step back
+                change_recon_down(self.recon, node, schild, self.events)
+            
+            node = self.preorder[self.step]
+            if can_change_recon_up(self.recon, node, self.events):
+                self.sprev = self.recon[node]
+                change_recon_up(self.recon, node, self.events)
+        self.step += 1
+        
+        return self.recon
+'''
+
+
+
+#=============================================================================
 # tree search
 
 class TreeSearch (object):
 
     def __init__(self, tree):
         self.set_tree(tree)
+
+    def __iter__(self):
+        return self
 
     def set_tree(self, tree):
         self.tree = tree
@@ -1114,6 +1251,9 @@ class TreeSearch (object):
 
     def revert(self):
         raise
+
+    def next(self):
+        return self.propose()
 
 
 class TreeSearchNni (TreeSearch):
@@ -1290,7 +1430,7 @@ def least_square_error(tree, distmat, genes, forcePos=True, weighting=False):
             dists.append(distmat[i][j])
     
     # create topology matrix
-    topmat, edges = makeTopologyMatrix(tree, genes)
+    topmat, edges = make_topology_matrix(tree, genes)
     
     # setup matrix and vector
     if weighting:
@@ -1318,8 +1458,8 @@ def least_square_error(tree, distmat, genes, forcePos=True, weighting=False):
     paths = paths.tolist()
     
     # set branch lengths
-    setBranchLengths(tree, edges, edgelens, paths, resids, 
-                     topmat=topmat, rootedge=rootedge)
+    set_branch_lengths_from_matrix(tree, edges, edgelens, paths, resids, 
+                                   topmat=topmat, rootedge=rootedge)
     
     return util.Bundle(resids=resids, 
                        paths=paths, 
@@ -1327,23 +1467,7 @@ def least_square_error(tree, distmat, genes, forcePos=True, weighting=False):
                        topmat=topmat)
 
 
-
-def makeWeightMatrix(topmat, paths):
-    import scipy
-    
-    weightmat = scipy.transpose(topmat)
-    
-    
-    for row in weightmat:
-        tot = sum(row)
-        
-        for i in xrange(len(row)):
-            row[i] *= 1.0 #* float(paths[i])
-    
-    return weightmat
-
-
-def makeTopologyMatrix(tree, genes):
+def make_topology_matrix(tree, genes):
 
     # find how edges split vertices
     network = treelib.tree2graph(tree)
@@ -1368,8 +1492,8 @@ def makeTopologyMatrix(tree, genes):
     return topmat, edges
 
 
-def setBranchLengths(tree, edges, edgelens, paths, resids, 
-                     topmat=None, rootedge=None):
+def set_branch_lengths_from_matrix(tree, edges, edgelens, paths, resids, 
+                                   topmat=None, rootedge=None):
     # recreate rooting branches
     if rootedge != None:
         # restore original rooting
@@ -1509,6 +1633,7 @@ def find_branch_splits(tree):
     
     return splits2
 
+
 def find_splits(tree):
     """Find branch splits for a tree"""
     
@@ -1545,10 +1670,9 @@ def find_splits(tree):
             splits.append((set1, set2))
     
     return splits
-findSplits = find_splits
 
 
-def splitString(split, leaves=None, leafDelim=" ", splitDelim="|"):
+def split_string(split, leaves=None, leafDelim=" ", splitDelim="|"):
     """
     Returns a string representing a split
 
@@ -1563,7 +1687,7 @@ def splitString(split, leaves=None, leafDelim=" ", splitDelim="|"):
     return leafDelim.join(split[0]) + splitDelim + leafDelim.join(split[1])
 
 
-def splitBitString(split, leaves=None, char1="*", char2=".", nochar=" "):
+def split_bit_string(split, leaves=None, char1="*", char2=".", nochar=" "):
     """Returns a bit string representation of a split"""
 
     if leaves is None:
@@ -1598,7 +1722,6 @@ def robinson_foulds_error(tree1, tree2):
         return 0.0
     else:
         return 1 - (len(overlap) / denom)
-robinsonFouldsError = robinson_foulds_error
 
 
 #=============================================================================

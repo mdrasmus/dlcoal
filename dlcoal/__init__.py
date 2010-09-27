@@ -9,9 +9,21 @@ from __future__ import division
 
 # python libs
 import os
+import sys
 import random
 from itertools import chain, izip
 from math import *
+
+
+# add pre-bundled dependencies to the python path,
+# if they are not available already
+try:
+    import rasmus, compbio, spidir
+except ImportError:
+    sys.path.append(os.path.realpath(os.path.join(
+        os.path.dirname(__file__), "deps")))
+    import rasmus, compbio
+
 
 # rasmus libs
 from rasmus import util, treelib
@@ -22,7 +34,6 @@ from compbio import coal
 from compbio import phylo
 
 # spidir libs
-import spidir
 import spidir.topology_prior
 
 
@@ -35,7 +46,8 @@ def dlcoal_recon(tree, stree, gene2species,
                  pretime=None, premean=None,
                  nsearch=1000,
                  maxdoom=20, nsamples=100,
-                 search=phylo.TreeSearchNni):
+                 search=phylo.TreeSearchNni,
+                 log=sys.stdout):
     """
     Perform reconciliation using the DLCoal model
 
@@ -53,9 +65,10 @@ def dlcoal_recon(tree, stree, gene2species,
     reconer = DLCoalRecon(tree, stree, gene2species,
                           n, duprate, lossrate,
                           pretime=pretime, premean=premean,
-                          maxdoom=maxdoom, nsamples=nsamples)
-    reconer.set_proposer(DLCoalReconProposer(search=search))
-    return reconer.recon(nsearch)
+                          maxdoom=maxdoom, nsamples=nsamples, log=log)
+    reconer.set_proposer(DLCoalReconProposer(
+        tree, stree, gene2species, search=search))
+    return reconer.recon(nsearch).get_dict()
 
 
 
@@ -65,7 +78,7 @@ class DLCoalRecon (object):
                  n, duprate, lossrate,
                  pretime=None, premean=None,
                  maxdoom=20, nsamples=100,
-                 name_internal="n"):
+                 name_internal="n", log=sys.stdout):
 
         # init coal tree
         self.coal_tree = tree
@@ -79,13 +92,18 @@ class DLCoalRecon (object):
         self.maxdoom = maxdoom
         self.nsamples = nsamples
         self.name_internal = name_internal
+        self.log_stream = log
 
-        self.proposer = DLCoalReconProposer()
+        self.proposer = DLCoalReconProposer(tree, stree, gene2species)
 
 
     def set_proposer(self, proposer):
         """Set the proposal algorithm"""
         self.proposer = proposer
+
+
+    def set_log(self, log):
+        self.log_stream = log
         
 
     def recon(self, nsearch=1000):
@@ -101,9 +119,9 @@ class DLCoalRecon (object):
             proposal = self.proposer.next_proposal()
         
         # rename locus tree nodes
-        rename_nodes(self.maxrecon["locus_tree"], self.name_internal)
+        rename_nodes(self.maxrecon.locus_tree, self.name_internal)
         
-        return self.maxp, self.maxrecon
+        return self.maxrecon
 
 
     def init_search(self):
@@ -111,7 +129,6 @@ class DLCoalRecon (object):
 
         # init locus tree as congruent to coal tree
         # equivalent to assuming no ILS
-        self.proposer.set_reconer(self)
         self.proposer.set_locus_tree(self.coal_tree.copy())
 
         self.maxp = - util.INF
@@ -127,31 +144,36 @@ class DLCoalRecon (object):
         """Compute probability of proposal"""
         
         # compute recon probability
-        phylo.add_implied_spec_nodes(proposal["locus_tree"], self.stree,
-                                     proposal["locus_recon"],
-                                     proposal["locus_events"])
+        phylo.add_implied_spec_nodes(proposal.locus_tree, self.stree,
+                                     proposal.locus_recon,
+                                     proposal.locus_events)
+        info = {}
         p = prob_dlcoal_recon_topology(self.coal_tree,
-                                       proposal["coal_recon"],
-                                       proposal["locus_tree"],
-                                       proposal["locus_recon"],
-                                       proposal["locus_events"],
-                                       proposal["daughters"],
+                                       proposal.coal_recon,
+                                       proposal.locus_tree,
+                                       proposal.locus_recon,
+                                       proposal.locus_events,
+                                       proposal.daughters,
                                        self.stree, self.n,
                                        self.duprate, self.lossrate,
                                        self.pretime, self.premean,
                                        maxdoom=self.maxdoom,
                                        nsamples=self.nsamples,
-                                       add_spec=False)
-        treelib.remove_single_children(proposal["locus_tree"])
-        phylo.subset_recon(proposal["locus_tree"],
-                           proposal["locus_recon"],
-                           proposal["locus_events"])
+                                       add_spec=False,
+                                       info=info)
+        treelib.remove_single_children(proposal.locus_tree)
+        phylo.subset_recon(proposal.locus_tree,
+                           proposal.locus_recon,
+                           proposal.locus_events)
+        proposal.data = info
         
         return p
 
 
     def eval_search(self, p, proposal):
         """Evaluate a proposal for search"""
+        
+        self.log_proposal(proposal)
 
         if p > self.maxp:
             self.maxp = p
@@ -163,42 +185,46 @@ class DLCoalRecon (object):
             self.proposer.reject()
 
 
+    def log_proposal(self, proposal):
+        self.log_stream.write(repr(proposal) + "\n")
+        self.log_stream.flush()
+
+
 
 class DLCoalReconProposer (object):
 
-    def __init__(self, search=phylo.TreeSearchNni):
-        self.reconer = None
+    def __init__(self, coal_tree, stree, gene2species,
+                 search=phylo.TreeSearchNni):
+        self.coal_tree = coal_tree
+        self.stree = stree
+        self.gene2species = gene2species
         self.locus_search = search(None)
         
-
-    def set_reconer(self, reconer):
-        self.reconer = reconer
 
     def set_locus_tree(self, locus_tree):
         self.locus_search.set_tree(locus_tree)
 
     def init_proposal(self):
         """Get first proposal"""
+
+        if self.locus_search.get_tree() is None:
+            self.locus_search.set_tree(self.coal_tree.copy())
         
         # get locus tree, and LCA locus_recon
         locus_tree = self.locus_search.get_tree().copy()
-        locus_recon = phylo.reconcile(locus_tree, self.reconer.stree,
-                                      self.reconer.gene2species)
+        locus_recon = phylo.reconcile(locus_tree, self.stree,
+                                      self.gene2species)
         locus_events = phylo.label_events(locus_tree, locus_recon)
 
         # propose daughters (TODO)
         daughters = set()
 
         # propose LCA coal_recon
-        coal_recon = phylo.reconcile(self.reconer.coal_tree,
+        coal_recon = phylo.reconcile(self.coal_tree,
                                      locus_tree, lambda x: x)
 
-        recon = {"coal_recon": coal_recon,
-                 "locus_tree": locus_tree,
-                 "locus_recon": locus_recon,
-                 "locus_events": locus_events,
-                 "daughters": daughters}
-        return recon
+        return Recon(coal_recon, locus_tree, locus_recon, locus_events,
+                     daughters)
 
 
     def next_proposal(self):        
@@ -206,37 +232,69 @@ class DLCoalReconProposer (object):
         
         # TODO: propose other reconciliations beside LCA
         locus_tree = self.locus_search.get_tree().copy()
-        phylo.recon_root(locus_tree, self.reconer.stree,
-                         self.reconer.gene2species,
+        rename_nodes(locus_tree)
+        
+        phylo.recon_root(locus_tree, self.stree,
+                         self.gene2species,
                          newCopy=False)
-        locus_recon = phylo.reconcile(locus_tree, self.reconer.stree,
-                                      self.reconer.gene2species)
+        locus_recon = phylo.reconcile(locus_tree, self.stree,
+                                      self.gene2species)
         locus_events = phylo.label_events(locus_tree, locus_recon)
 
         # propose daughters (TODO)
         daughters = set()
 
         # propose coal recon (TODO: propose others beside LCA)
-        coal_recon = phylo.reconcile(self.reconer.coal_tree,
+        coal_recon = phylo.reconcile(self.coal_tree,
                                      locus_tree, lambda x: x)
 
-        recon = {"coal_recon": coal_recon,
-                 "locus_tree": locus_tree,
-                 "locus_recon": locus_recon,
-                 "locus_events": locus_events,
-                 "daughters": daughters}
-        return recon
+        return Recon(coal_recon, locus_tree, locus_recon, locus_events,
+                     daughters)
 
 
     def accept(self):
         self.locus_search.set_tree(self.locus_search.get_tree().copy())
 
-        # TODO: also recon recons
+        # TODO: also record recons
     
 
     def reject(self):
         self.locus_search.revert()
 
+
+class Recon (object):
+    
+    def __init__(self, coal_recon, locus_tree, locus_recon, locus_events,
+                 daughters):
+        self.coal_recon = coal_recon
+        self.locus_tree = locus_tree
+        self.locus_recon = locus_recon
+        self.locus_events = locus_events
+        self.daughters = daughters
+
+        self.data = {}
+
+
+    def get_dict(self):
+        return {"coal_recon": self.coal_recon,
+                "locus_tree": self.locus_tree,
+                "locus_recon": self.locus_recon,
+                "locus_events": self.locus_events,
+                "daughters": self.daughters}
+    
+    
+    def __repr__(self):
+        return repr({"coal_recon": [(x.name, y.name) for x,y in
+                                    self.coal_recon.iteritems()],
+                     "locus_tree": self.locus_tree.get_one_line_newick(),
+                     "locus_top": phylo.hash_tree(self.locus_tree),
+                     "locus_recon": [(x.name, y.name) for x,y in
+                                     self.locus_recon.iteritems()],
+                     "locus_events": [(x.name, y) for x,y in
+                                      self.locus_events.iteritems()],
+                     "daughters": [x.name for x in self.daughters],
+                     "data": self.data})
+    
 
 
 #=============================================================================
@@ -248,7 +306,7 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
                                stree, n, duprate, lossrate,
                                pretime=None, premean=None,
                                maxdoom=20, nsamples=100,
-                               add_spec=True):
+                               add_spec=True, info=None):
     """
     Probability of a reconcile gene tree in the DLCoal model.
 
@@ -317,6 +375,13 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
         for r in removed:
             del locus_recon[r]
             del locus_events[r]
+
+    # logging info
+    if info is not None:
+        info["duploss_prob"] = dl_prob
+        info["daughters_prob"] = d_prob
+        info["coal_prob"] = util.safelog(prob / nsamples)
+        info["prob"] = dl_prob + d_prob + util.safelog(prob / nsamples)
     
     return dl_prob + d_prob + util.safelog(prob / nsamples)
 
@@ -640,6 +705,14 @@ def read_dlcoal_recon(filename, stree,
         filenames.get("daughters", filename + exts["daughters"])))
 
     return coal_tree, extra
+
+
+def read_log(filename):
+    """Reads a DLCoal log"""
+    stream = util.open_stream(filename)
+    for line in stream:
+        yield eval(line)
+  
     
 
 
