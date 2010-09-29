@@ -9,7 +9,13 @@
 #      X.locus.tree  -- locus tree
 #      X.daughters   -- daughter edges in locus tree
 #      X.locus.recon -- reconciliation from locus tree to species tree
-python make_sim.py
+dlcoal_sim -i 100 -s config/flies.stree -S config/flies.smap \
+    -n 1e7 -D .0012 -L .0011 -g .1 -o data/flies
+
+
+# view a simulation
+view_recon -s config/flies.stree -g .1 data/flies/0/0
+
 
 # get real relations
 #   creates the file 'data/flies.rel.txt' which contains every duplication,
@@ -57,13 +63,17 @@ cat data/flies.mpr.rel-summary.txt
 phylofiles -n data/flies .dlcoal.locus.recon | (while read x; do
     x=${x/.dlcoal.locus.recon/.coal.tree}
     echo $x
-    dlcoal_recon \
+    dlcoal_recon -i 100 --nsamples 1 \
         -s config/flies.stree -S config/flies.smap \
-        -n 2e7 -D .0012 -L .0011 -g .1 -I .coal.tree -O .dlcoal $x
+        -n 1e7 -D .0012 -L .0011 -g .1 -I .coal.tree -O .dlcoal $x
 done)
 
 # test to see if DLCoalRecon completed (should report 500 files)
 phylofiles -e data/flies .dlcoal.locus.recon | wc -l
+
+# view a dlcoal reconstruction
+view_recon -s config/flies.stree -g .1 data/flies/0/0.dlcoal
+
 
 
 # get dlcoal relations and compare them to the truth
