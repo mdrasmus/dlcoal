@@ -7,13 +7,10 @@ from compbio import phylo, birthdeath
 
 
 
-
 def sample_dup_times(tree, stree, recon, birth, death,
                      pretime=None, premean=None, events=None):
     """
     Sample duplication times for a gene tree in the dup-loss model
-
-    NOTE: Implied speciation nodes must be present
     """
 
     def gene2species(gene):
@@ -58,24 +55,21 @@ def sample_dup_times(tree, stree, recon, birth, death,
     for node in tree.preorder():
         if events[node] == "spec":
             # set speciation time
-            start_time = times[node] = stimes[recon[node]]
-            if node.parent:
-                if times[node] > times[node.parent]:
-                    print "bad", node.name
-                    #raise Exception("bad time")
+            times[node] = stimes[recon[node]]
 
+
+        elif (events[node] == "dup" and
+              node.parent is not None and
+              recon[node] != recon[node.parent]):
             # set duplication times within duplication subtree
-            for duproot in node.children:
-                if events[duproot] == "dup":
-                    snode = recon[duproot]
-                    time_span = snode.dist
-
-                    #assert start_time - time_span >= stimes[snode], \
-                    #       (duproot.name, start_time, time_span, stimes[snode])
-                    sample_dup_times_subtree(times, start_time, time_span,
-                                             duproot, 
-                                             recon, events,
-                                             stree, birth, death)
+            # node is duproot
+            snode = recon[node]
+            start_time = stimes[snode.parent]
+            time_span = snode.dist
+            sample_dup_times_subtree(times, start_time, time_span,
+                                     node, 
+                                     recon, events,
+                                     stree, birth, death)
         elif events[node] == "gene":
             times[node] = 0.0
 
@@ -90,15 +84,12 @@ def sample_dup_times_subtree(times, start_time, time_span, duproot,
     """
     
     # walk duplication subtree
-    def walk(dup):
-        if dup.parent:
-            parent_time = times[dup.parent]
-        else:
-            parent_time = start_time
+    def walk(dup, parent_time):
         remain = time_span - (start_time - parent_time)
 
         while True:
-            t = birthdeath.sample_birth_wait_time(1, remain, birth, death)
+            t = birthdeath.sample_birth_wait_time(1, remain,
+                                                  birth, death)
             times[dup] = parent_time - t
             assert t >= 0.0
             
@@ -106,12 +97,10 @@ def sample_dup_times_subtree(times, start_time, time_span, duproot,
                 break
             else:
                 print t, remain, dup.parent
-        
-        for child in dup.children:
-            if events[child] == "dup":
-                walk(child)
-    walk(duproot)
 
-    
-    
+        snode = recon[dup]
+        for child in dup.children:
+            if events[child] == "dup" and recon[child] == snode:
+                walk(child, times[dup])
+    walk(duproot, start_time)
 

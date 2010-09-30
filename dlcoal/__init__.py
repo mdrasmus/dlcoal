@@ -156,9 +156,9 @@ class DLCoalRecon (object):
 
         #util.tic("eval")
         # compute recon probability
-        phylo.add_implied_spec_nodes(proposal.locus_tree, self.stree,
-                                     proposal.locus_recon,
-                                     proposal.locus_events)
+        #phylo.add_implied_spec_nodes(proposal.locus_tree, self.stree,
+        #                             proposal.locus_recon,
+        #                             proposal.locus_events)
         info = {}
         p = prob_dlcoal_recon_topology(self.coal_tree,
                                        proposal.coal_recon,
@@ -173,10 +173,10 @@ class DLCoalRecon (object):
                                        nsamples=self.nsamples,
                                        add_spec=False,
                                        info=info)
-        treelib.remove_single_children(proposal.locus_tree)
-        phylo.subset_recon(proposal.locus_tree,
-                           proposal.locus_recon,
-                           proposal.locus_events)
+        #treelib.remove_single_children(proposal.locus_tree)
+        #phylo.subset_recon(proposal.locus_tree,
+        #                   proposal.locus_recon,
+        #                   proposal.locus_events)
         proposal.data = info
         #util.toc()
         
@@ -385,9 +385,9 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
     dups = phylo.count_dup(locus_tree, locus_events)
     
     # ensure implicit speciations are present
-    if add_spec:
-        phylo.add_implied_spec_nodes(locus_tree, stree,
-                                     locus_recon, locus_events)
+    #if add_spec:
+    #    phylo.add_implied_spec_nodes(locus_tree, stree,
+    #                                 locus_recon, locus_events)
     
     # init popsizes for locus tree
     stree_popsizes = coal.init_popsizes(stree, n)
@@ -423,14 +423,12 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
     prob = 0.0
     for i in xrange(nsamples):
         # sample duplication times
-
         locus_times = duploss.sample_dup_times(
             locus_tree, stree, locus_recon, duprate, lossrate, pretime,
             premean,
             events=locus_events)
-        #assert len(locus_times) == len(locus_tree.nodes), (
-        #    len(locus_times), len(locus_tree.nodes))
         treelib.set_dists_from_timestamps(locus_tree, locus_times)
+        #treelib.check_timestamps(locus_tree, locus_times)
 
         # coal topology probability
         coal_prob = prob_locus_coal_recon_topology(
@@ -439,11 +437,11 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
         prob += exp(coal_prob)
     
 
-    if add_spec:
-        removed = treelib.remove_single_children(locus_tree)
-        for r in removed:
-            del locus_recon[r]
-            del locus_events[r]
+    #if add_spec:
+    #    removed = treelib.remove_single_children(locus_tree)
+    #    for r in removed:
+    #        del locus_recon[r]
+    #        del locus_events[r]
 
     # logging info
     if info is not None:
