@@ -2,6 +2,7 @@
 # DLCoal Reconciliation
 
 import sys
+import random
 from os.path import dirname
 import optparse
 
@@ -44,6 +45,8 @@ g = optparse.OptionGroup(o, "Miscellaneous")
 o.add_option_group(g)
 g.add_option("", "--nsamples", dest="nsamples", metavar="NUM_SAMPLES",
              type="int", default=100)
+g.add_option("-x", "--seed", dest="seed", metavar="RANDOM_SEED",
+             type="int", default=None)
 
 
 conf, args = o.parse_args()
@@ -51,7 +54,9 @@ conf, args = o.parse_args()
 if len(args) == 0:
     o.print_help()
     sys.exit(1)
-    
+
+
+random.seed(conf.seed)
 
 #=============================================================================
 # read inputs

@@ -19,16 +19,7 @@ from math import *
 from dlcoal.ctypes_export import *
 
 # import spidir C lib
-try:
-    # use library from source path
-    libdir = os.path.join(os.path.dirname(__file__), "..", "lib")
-    dlcoalc = cdll.LoadLibrary(os.path.join(libdir, "libdlcoal.so"))
-except:
-    # search for libspidir.so in library path
-    try:
-        dlcoalc = cdll.LoadLibrary("libdlcoal.so")
-    except:
-        dlcoalc = None
+dlcoalc = load_library(["..", "lib"], "libdlcoal.so")
 
 
 # add pre-bundled dependencies to the python path,
@@ -36,8 +27,8 @@ except:
 try:
     import rasmus, compbio, spidir
 except ImportError:
-    sys.path.append(os.path.realpath(os.path.join(
-        os.path.dirname(__file__), "deps")))
+    from . import dep
+    dep.load_deps()
     import rasmus, compbio
 
 
@@ -48,11 +39,10 @@ from rasmus import util, treelib
 from compbio import birthdeath
 from compbio import phylo
 
-# spidir libs
-import spidir.topology_prior
 
 # dlcoal libs
-from . import coal
+from . import coal, duploss
+
 
 
 #=============================================================================
@@ -131,6 +121,7 @@ class DLCoalRecon (object):
         
         self.init_search()
         proposal = self.proposer.init_proposal()
+        self.maxrecon = proposal.copy()
         for i in xrange(nsearch):
             if i%10 == 0:
                 print "search", i
@@ -389,6 +380,7 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
 
     Note: locus tree must have implied speciation nodes present
     """
+
     
     dups = phylo.count_dup(locus_tree, locus_events)
     
@@ -402,18 +394,24 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
     popsizes = {}
     for node in locus_tree:
         popsizes[node.name] = stree_popsizes[locus_recon[node].name]
-
-
+    
+    
     # duploss probability
     try:
-        dl_prob = spidir.calc_birth_death_prior(locus_tree, stree, locus_recon,
-                                                duprate, lossrate,
-                                                maxdoom=maxdoom)
-    except:
+        dl_prob = spidir.calc_birth_death_prior(
+            locus_tree, stree, locus_recon,
+            duprate, lossrate,
+            maxdoom=maxdoom)
+        
+    except Exception, e:
         if "dlcoal_python_fallback" not in globals():
+            print >>sys.stderr, e
             print >>sys.stderr, "warning: using python code instead of native"
             globals()["dlcoal_python_fallback"] = 1
-        dl_prob = spidir.topology_prior.dup_loss_topology_prior(
+            # spidir libs
+            from spidir import topology_prior
+            
+        dl_prob = topology_prior.dup_loss_topology_prior(
             locus_tree, stree, locus_recon, duprate, lossrate,
             maxdoom=maxdoom, events=locus_events)
     
@@ -422,17 +420,16 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
 
 
     # integrate over duplication times using sampling
-    #util.tic("coal")
     prob = 0.0
     for i in xrange(nsamples):
         # sample duplication times
 
-        locus_times = spidir.topology_prior.sample_dup_times(
+        locus_times = duploss.sample_dup_times(
             locus_tree, stree, locus_recon, duprate, lossrate, pretime,
             premean,
             events=locus_events)
-        assert len(locus_times) == len(locus_tree.nodes), (
-            len(locus_times), len(locus_tree.nodes))
+        #assert len(locus_times) == len(locus_tree.nodes), (
+        #    len(locus_times), len(locus_tree.nodes))
         treelib.set_dists_from_timestamps(locus_tree, locus_times)
 
         # coal topology probability
@@ -440,7 +437,7 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
             coal_tree, coal_recon, locus_tree, popsizes, daughters)
         
         prob += exp(coal_prob)
-    #util.toc()
+    
 
     if add_spec:
         removed = treelib.remove_single_children(locus_tree)
@@ -946,7 +943,7 @@ def prob_dlcoal_recon_topology_old(coal_tree, coal_recon,
     for i in xrange(nsamples):
         # sample duplication times
 
-        locus_times = spidir.topology_prior.sample_dup_times(
+        locus_times = duploss.sample_dup_times(
             locus_tree, stree, locus_recon, duprate, lossrate, pretime,
             premean,
             events=locus_events)

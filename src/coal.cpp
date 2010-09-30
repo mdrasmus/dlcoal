@@ -16,14 +16,14 @@ double prob_coal_counts(int a, int b, double t, double n)
     double C = 1.0;
     
     for (int y=0; y<b; y++)
-        C *= (b+y)*(a-y)/float(a+y);
+        C *= (b+y)*(a-y)/double(a+y);
 
     double s = exp(-b*(b-1)*t/2.0/n) * C;
 
     for (int k=b+1; k<a+1; k++) {
-        const int k1 = k - 1;
-        C *= float(b+k1)*(a-k1)/(a+k1)/(b-k);
-        s += exp(-k*k1*t/2.0/n) * (2*k-1) / (k1+b) * C;
+        const double k1 = double(k - 1);
+        C *= double(b+k1)*(a-k1)/(a+k1)/(b-k);
+        s += exp(-k*k1*t/2.0/n) * (2*k-1) / double(k1+b) * C;
     }
     
     for (int i=1; i<=b; i++)
@@ -39,28 +39,52 @@ double prob_coal_counts(int a, int b, double t, double n)
 
 /*
 
+def count_lineages_per_branch(tree, recon, stree):
+    """
+    Returns the count of gene lineages present at each node in the species
+    tree 'tree' given a gene tree 'tree' and reconciliation 'recon'
+    """
+
+    # init lineage counts
+    lineages = {}
+    for snode in stree:
+        lineages[snode] = [0, 0]
+
+    for node in tree.postorder():
+        snode = recon[node]
+        if node.is_leaf():
+            lineages[snode][0] += 1 # leaf lineage
+        else:
+            lineages[snode][1] -= 1 # coal
+
+    for snode in stree.postorder():
+        if not snode.is_leaf():
+            lineages[snode][0] = sum(lineages[x][1] for x in snode.children)
+        lineages[snode][1] += lineages[snode][0]
+        
+    return lineages
+
+
 // The function computes terms necessary for many topology calculations
-def get_topology_stats(tree, recon, stree, rev_recon=None):
-
-    nodes_per_species = {} # How many gene nodes per species
-    descend_nodes = {} # How many descendent nodes recon to the same species
-
+def get_topology_stats(tree, recon, stree):
+    """
+    The function computes terms necessary for many topology calculations
+    """
     
-    # init reverse reconciliation
-    if rev_recon is None:
-        rev_recon = get_rev_recon(tree, recon, stree)
+    # How many gene nodes per species
+    nodes_per_species = dict.fromkeys(stree, 0)
 
-    # iterate through species tree
-    for snode, nodes in rev_recon.iteritems():
-        nodes_per_species[snode] = len([x for x in nodes
-                                        if len(x.children) > 1])
+    # How many descendent nodes recon to the same species
+    descend_nodes = {} 
 
     # iterate through tree
     for node in tree.postorder():
-        if not node.is_leaf() and len(node.children) > 1:
-            descend_nodes[node] = 1 + sum(descend_nodes.get(child, 0)
-                                          for child in node.children
-                                          if recon[child] == recon[node])
+        if len(node.children) > 1:
+            nodes_per_species[recon[node]] += 1
+            if not node.is_leaf():
+                descend_nodes[node] = 1 + sum(descend_nodes.get(child, 0)
+                                              for child in node.children
+                                              if recon[child] == recon[node])
 
     return nodes_per_species, descend_nodes
 
