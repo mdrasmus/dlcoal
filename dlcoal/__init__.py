@@ -403,9 +403,32 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
     # daughters probability
     dups = phylo.count_dup(locus_tree, locus_events)
     d_prob = dups * log(.5)
-
-
+    
     # integrate over duplication times using sampling
+    stimes = treelib.get_tree_timestamps(stree)
+    prob = coal.prob_locus_coal_recon_topology_samples(
+        coal_tree, coal_recon,
+        locus_tree, locus_recon, locus_events, popsizes,
+        stree, stimes,
+        daughters, duprate, lossrate, nsamples)
+    
+    # logging info
+    if info is not None:
+        info["duploss_prob"] = dl_prob
+        info["daughters_prob"] = d_prob
+        info["coal_prob"] = util.safelog(prob / nsamples)
+        info["prob"] = dl_prob + d_prob + prob - log(nsamples)
+    
+    return dl_prob + d_prob + prob - log(nsamples)
+
+
+def prob_locus_coal_recon_topology_samples(
+        coal_tree, coal_recon,
+        locus_tree, locus_recon, locus_events, popsizes,
+        stree, stimes,
+        daughters, duprate, lossrate, nsamples,
+        pretime=None, premean=None):
+    
     prob = 0.0
     for i in xrange(nsamples):
         # sample duplication times
@@ -416,19 +439,13 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
         treelib.set_dists_from_timestamps(locus_tree, locus_times)
 
         # coal topology probability
-        coal_prob = prob_locus_coal_recon_topology(
+        coal_prob = coal.prob_locus_coal_recon_topology(
             coal_tree, coal_recon, locus_tree, popsizes, daughters)
         
         prob += exp(coal_prob)
-    
-    # logging info
-    if info is not None:
-        info["duploss_prob"] = dl_prob
-        info["daughters_prob"] = d_prob
-        info["coal_prob"] = util.safelog(prob / nsamples)
-        info["prob"] = dl_prob + d_prob + util.safelog(prob / nsamples)
-    
-    return dl_prob + d_prob + util.safelog(prob / nsamples)
+    prob = util.safelog(prob)
+
+    return prob
 
 
 def prob_locus_coal_recon_topology(tree, recon, locus_tree, n, daughters):

@@ -13,9 +13,6 @@ def sample_dup_times(tree, stree, recon, birth, death,
     Sample duplication times for a gene tree in the dup-loss model
     """
 
-    def gene2species(gene):
-        return recon[tree.nodes[gene]].name
-
     if events is None:
         events = phylo.label_events(tree, recon)
 
@@ -33,9 +30,8 @@ def sample_dup_times(tree, stree, recon, birth, death,
             # tree root is a dup within species tree
             snode = recon[tree.root]
             start_time = stimes[snode.parent]
-            time_span = snode.dist
-        
-        if recon[tree.root] == stree.root:
+            time_span = start_time - stimes[snode]
+        else:
             # tree root is a pre-spec dup
             if pretime is None:
                 if premean is None:
@@ -65,7 +61,7 @@ def sample_dup_times(tree, stree, recon, birth, death,
             # node is duproot
             snode = recon[node]
             start_time = stimes[snode.parent]
-            time_span = snode.dist
+            time_span = start_time - stimes[snode]
             sample_dup_times_subtree(times, start_time, time_span,
                                      node, 
                                      recon, events,
