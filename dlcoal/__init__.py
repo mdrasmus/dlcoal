@@ -410,7 +410,15 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
         coal_tree, coal_recon,
         locus_tree, locus_recon, locus_events, popsizes,
         stree, stimes,
-        daughters, duprate, lossrate, nsamples)
+        daughters, duprate, lossrate, nsamples, pretime, premean)
+
+    #prob = prob_locus_coal_recon_topology_samples(
+    #    coal_tree, coal_recon,
+    #    locus_tree, locus_recon, locus_events, popsizes,
+    #    stree, stimes,
+    #    daughters, duprate, lossrate, nsamples,
+    #    pretime, premean)
+
     
     # logging info
     if info is not None:

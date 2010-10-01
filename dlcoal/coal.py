@@ -32,7 +32,7 @@ if dlcoal.dlcoalc:
 
     export(dlcoal.dlcoalc, "prob_locus_coal_recon_topology", c_double,
            [c_int_p, "ptree", c_int, "nnodes", c_int_p, "recon", 
-            c_int_p, "plocus_tree", c_int, "nlnodes", 
+            c_int_p, "plocus_tree", c_void_p, "iltree", c_int, "nlnodes", 
             c_double_p, "popsizes", c_double_p, "stimes",
             c_int_p, "daughters", c_int, "ndaughters"])
 
@@ -44,7 +44,7 @@ if dlcoal.dlcoalc:
             c_int_p, "pstree", c_int, "nsnodes", c_double_p, "stimes",
             c_int_p, "daughters", c_int, "ndaughters", 
             c_double, "birth", c_double, "death",
-            c_int, "nsamples"])
+            c_int, "nsamples", c_double, "pretime", c_double, "premean"])
 
 
 def make_ptree(tree):
@@ -59,15 +59,16 @@ def make_ptree(tree):
             walk(child)
         nodes.append(node)
     walk(tree.root)
-    
+
+    # ensure sort is stable
     def leafsort(a, b):
         if a.is_leaf():
-            if b.isLeaf():
+            if b.is_leaf():
                 return 0
             else:
                 return -1
         else:
-            if b.isLeaf():
+            if b.is_leaf():
                 return 1
             else:
                 return 0
@@ -120,9 +121,6 @@ def prob_multicoal_recon_topology(tree, recon, stree, n,
         c_list(c_int, ptree), len(nodes), c_list(c_int, recon2),
         c_list(c_int, pstree), len(snodes), c_list(c_double, sdists),
         c_list(c_double, popsizes2))
-
-    #p2 = pmrt(tree, recon, stree, n, lineages, top_stats)
-    #assert abs(p - p2) < .01, (p, p2)
     
     return p
 compbio.coal.prob_multicoal_recon_topology = prob_multicoal_recon_topology
@@ -146,7 +144,7 @@ def prob_locus_coal_recon_topology(tree, recon, locus_tree, n, daughters):
     
     p = dlcoal.dlcoalc.prob_locus_coal_recon_topology(
         c_list(c_int, ptree), len(nodes), c_list(c_int, recon2),
-        c_list(c_int, pltree), len(lnodes),
+        c_list(c_int, pltree), 0, len(lnodes),
         c_list(c_double, popsizes2), c_list(c_double, ltimes2),
         c_list(c_int, daughters2), len(daughters))
     
@@ -158,7 +156,10 @@ def prob_locus_coal_recon_topology_samples(
     locus_tree, locus_recon, locus_events, locus_popsizes,
     stree, stimes,
     daughters,
-    birth, death, nsamples):
+    birth, death, nsamples, pretime=None, premean=100.0):
+
+    if pretime is None:
+        pretime = -1
 
     ptree, nodes, nodelookup = make_ptree(coal_tree)
     pltree, lnodes, lnodelookup = make_ptree(locus_tree)
@@ -175,7 +176,6 @@ def prob_locus_coal_recon_topology_samples(
 
     daughters2 = [lnodelookup[lnode] for lnode in daughters]
     
-    
     p = dlcoal.dlcoalc.prob_locus_coal_recon_topology_samples(
         c_list(c_int, ptree), len(nodes), c_list(c_int, crecon2),
         c_list(c_int, pltree), len(lnodes),
@@ -183,6 +183,6 @@ def prob_locus_coal_recon_topology_samples(
         c_list(c_double, popsizes2),
         c_list(c_int, pstree), len(snodes), c_list(c_double, stimes2),
         c_list(c_int, daughters2), len(daughters),
-        birth, death, nsamples)
+        birth, death, nsamples, pretime, premean)
 
     return p

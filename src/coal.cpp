@@ -3,8 +3,8 @@
 #include <math.h>
 #include <stdio.h>
 
-
-#include "Tree.h"
+#include "common.h"
+//#include "Tree.h"
 
 using namespace spidir;
 
@@ -12,6 +12,51 @@ namespace dlcoal
 {
 
 extern "C" {
+
+//=============================================================================
+// primitive tree format conversion functions
+
+struct intnode
+{
+    int parent;
+    int child[2];
+};
+
+// creates a int tree from a parent tree
+// Note: assumes binary tree
+intnode *make_itree(int nnodes, int *ptree)
+{
+    intnode *itree = new intnode [nnodes];
+    
+    // initialize
+    for (int i=0; i<nnodes; i++) {
+        itree[i].parent = ptree[i];
+        itree[i].child[0] = -1;
+        itree[i].child[1] = -1;
+    }
+    
+    // populate
+    for (int i=0; i<nnodes; i++) {
+        int parent = ptree[i];
+        
+        if (parent != -1) {
+            if (itree[parent].child[0] == -1)
+                itree[parent].child[0] = i;
+            else
+                itree[parent].child[1] = i;
+        }
+    }
+
+    return itree;
+}
+
+
+void free_itree(intnode *itree)
+{
+    delete [] itree;
+}
+
+
 
 class LineageCounts
 {
@@ -117,7 +162,7 @@ double num_labeled_histories(int nleaves, int nroots)
 // Returns the count of gene lineages present at each node in the species
 // tree 'tree' given a gene tree 'tree' and reconciliation 'recon'
 void count_lineages_per_branch(LineageCounts *counts,
-    int *ptree, int nnodes, int *recon, int *pstree, int nsnodes)
+    int nnodes, int *recon, int *pstree, int nsnodes)
 {
     const int nleaves = (nnodes + 1) / 2;
     //const int nsleaves = (nsnodes + 1) / 2;
@@ -171,6 +216,32 @@ void get_topology_stats(TopStats *top_stats,
 }
 
 
+// The function computes terms necessary for many topology calculations
+void get_topology_stats2(TopStats *top_stats, 
+   intnode *itree, int nnodes, int *recon, int *pstree, int nsnodes)
+{
+    const int nleaves = (nnodes + 1) / 2;
+    int *nodes_per_species = top_stats->nodes_per_species;
+    int *descend_nodes = top_stats->descend_nodes;
+
+    // clear stats data structure
+    for (int snode=0; snode<nsnodes; snode++)
+        nodes_per_species[snode] = 0;
+
+    for (int node=0; node<nnodes; node++)
+        descend_nodes[node] = 0;
+
+    // iterate through tree
+    for (int node=nleaves; node<nnodes; node++) {
+        nodes_per_species[recon[node]]++;
+        descend_nodes[node]++;
+
+        const int parent = itree[node].parent;
+        if (recon[node] == recon[parent])
+            descend_nodes[parent] += descend_nodes[node];
+    }
+}
+
 
 
 // Returns the log probability of a reconciled gene tree ('tree', 'recon')
@@ -181,7 +252,7 @@ double prob_multicoal_recon_topology(int *ptree, int nnodes, int *recon,
                                      double *sdists, double *popsizes)
 {
     LineageCounts counts(nsnodes);
-    count_lineages_per_branch(&counts, ptree, nnodes, recon, pstree, nsnodes);
+    count_lineages_per_branch(&counts, nnodes, recon, pstree, nsnodes);
 
     TopStats top_stats(nnodes, nsnodes);
     get_topology_stats(&top_stats, ptree, nnodes, recon, pstree, nsnodes);
@@ -219,15 +290,15 @@ double prob_multicoal_recon_topology(int *ptree, int nnodes, int *recon,
 // Returns the log probability of a reconciled gene tree ('tree', 'recon')
 // from the coalescent model given a species tree 'stree' and
 // population sizes 'n'
-double prob_multicoal_recon_topology2(int *ptree, int nnodes, int *recon, 
-                                     int *pstree, int nsnodes, 
-                                     double *stimes, double *popsizes)
+double prob_multicoal_recon_topology2(intnode *itree, int nnodes, int *recon, 
+                                      int *pstree, int nsnodes, 
+                                      double *stimes, double *popsizes)
 {
     LineageCounts counts(nsnodes);
-    count_lineages_per_branch(&counts, ptree, nnodes, recon, pstree, nsnodes);
+    count_lineages_per_branch(&counts, nnodes, recon, pstree, nsnodes);
 
     TopStats top_stats(nnodes, nsnodes);
-    get_topology_stats(&top_stats, ptree, nnodes, recon, pstree, nsnodes);
+    get_topology_stats2(&top_stats, itree, nnodes, recon, pstree, nsnodes);
     
     // iterate through species tree branches
     double lnp = 0.0; // log probability
@@ -264,15 +335,11 @@ double prob_multicoal_recon_topology2(int *ptree, int nnodes, int *recon,
 // use dynamic programming to calc prob of lineage counts
 void calc_prob_counts_table(ProbCounts *prob_counts,
                             int *gene_counts, double T, 
-                            int *pstree, int nsnodes, 
+                            intnode *istree, int nsnodes, 
                             double *popsizes,
                             int sroot, int *sleaves, int nsleaves,
                             double *stimes)
 {
-    // get stree forwards tree (TODO: make this supplied)
-    int **fstree;
-    makeFtree(nsnodes, pstree, &fstree);
-
     // array of max number of lineages per snode
     int* sizes = new int [nsnodes];
 
@@ -295,7 +362,7 @@ void calc_prob_counts_table(ProbCounts *prob_counts,
             break;
 
         // push parent
-        const int sparent = pstree[snode];
+        const int sparent = istree[snode].parent;
         if (sparent >= 0)
             if (++stack_pushes[sparent] == 2)
                 stack[stack_len++] = sparent;
@@ -313,8 +380,8 @@ void calc_prob_counts_table(ProbCounts *prob_counts,
             start[M] = 1.0;
         } else {
             // internal node case
-            const int c1 = fstree[snode][0];
-            const int c2 = fstree[snode][1];
+            const int c1 = istree[snode].child[0];
+            const int c2 = istree[snode].child[1];
             const int M1 = sizes[c1];
             const int M2 = sizes[c2];
             M = M1 + M2; // max lineage counts in this snode
@@ -336,7 +403,7 @@ void calc_prob_counts_table(ProbCounts *prob_counts,
 
         // populate ending lineage counts
         const double n = popsizes[snode];
-        double ptime = (sparent >= 0) ? stimes[pstree[snode]] : T;
+        double ptime = (sparent >= 0) ? stimes[istree[snode].parent] : T;
         double *end = new double [M+1];
         if (ptime < 0) {
             // unbounded end time, i.e. complete coalescence
@@ -359,7 +426,7 @@ void calc_prob_counts_table(ProbCounts *prob_counts,
     }
 
     // deallocates 'forward tree'
-    freeFtree(nsnodes, fstree);
+    free_itree(istree);
 
     delete [] sizes;
 }
@@ -367,21 +434,22 @@ void calc_prob_counts_table(ProbCounts *prob_counts,
 
 
 double prob_locus_coal_recon_topology(int *ptree, int nnodes, int *recon, 
-                                      int *plocus_tree, int nlocus_nodes, 
+                                      int *plocus_tree, intnode *iltree,
+                                      int nlocus_nodes, 
                                       double *popsizes, double *ltimes,
                                       int *daughters, int ndaughters)
 {
-    double lnp = prob_multicoal_recon_topology2(ptree, nnodes, recon, 
+    bool own_iltree = false;
+    if (!iltree) {
+        own_iltree = true;
+        iltree = make_itree(nlocus_nodes, plocus_tree);
+    }
+    double lnp = prob_multicoal_recon_topology2(iltree, nnodes, recon, 
                                                 plocus_tree, nlocus_nodes, 
                                                 ltimes, popsizes);
 
-    int **fltree;
-    makeFtree(nlocus_nodes, plocus_tree, &fltree);
-
-
     const int nleaves = (nnodes + 1) / 2;
 
-    // TODO: finish
     ProbCounts prob_counts(nlocus_nodes);
     int *stack = new int [nnodes];
     int stack_len = 0;
@@ -391,7 +459,7 @@ double prob_locus_coal_recon_topology(int *ptree, int nnodes, int *recon,
     int nsubleaves;
 
     LineageCounts counts(nlocus_nodes);
-    count_lineages_per_branch(&counts, ptree, nnodes, recon, 
+    count_lineages_per_branch(&counts, nnodes, recon, 
                               plocus_tree, nlocus_nodes);
 
     // make daughter set
@@ -415,7 +483,7 @@ double prob_locus_coal_recon_topology(int *ptree, int nnodes, int *recon,
                 subleaves[nsubleaves++] = lnode;
             } else {
                 for (int i=0; i<2; i++) {
-                    const int child = fltree[lnode][i];
+                    const int child = iltree[lnode].child[i];
                     if (daughters_set[child]) {
                         gene_counts[child] = 1;
                         subleaves[nsubleaves++] = child;
@@ -430,7 +498,7 @@ double prob_locus_coal_recon_topology(int *ptree, int nnodes, int *recon,
         const double T = ltimes[plocus_tree[daughter]];
         calc_prob_counts_table(&prob_counts,
                                gene_counts, T, 
-                               plocus_tree, nlocus_nodes, 
+                               iltree, nlocus_nodes, 
                                popsizes,
                                daughter, subleaves, nsubleaves,
                                ltimes);
@@ -442,9 +510,13 @@ double prob_locus_coal_recon_topology(int *ptree, int nnodes, int *recon,
 
 
      // deallocates 'forward tree'
-    freeFtree(nlocus_nodes, fltree);
+    if (own_iltree)
+        free_itree(iltree);
 
     delete [] stack;
+    delete [] gene_counts;
+    delete [] subleaves;
+
 
     return lnp;
 }
@@ -562,7 +634,7 @@ double sampleBirthWaitTime1(float T, float birth, float death)
 
 
 // Sample duplication times for only a subtree
-void sample_dup_times_subtree(double *times, int *ptree, int **ftree, 
+void sample_dup_times_subtree(double *times, intnode *itree, 
                               double start_time, double time_span, 
                               int duproot, 
                               int *recon, int *events,
@@ -577,9 +649,14 @@ void sample_dup_times_subtree(double *times, int *ptree, int **ftree,
     for (int stack_i=0; stack_i<stack_len; stack_i++) {
         const int node = stack[stack_i];
         const double parent_time = (stack_i == 0) ? 
-            start_time : times[ptree[node]];
+            start_time : times[itree[node].parent];
         const double remain = time_span - (start_time - parent_time);
 
+        if (remain <= 0.0) {
+            printf("node %d %e %e %e\n", node, 
+                   time_span, start_time, parent_time);
+            assert(false);
+        }
         double t;
         do {
             t = sampleBirthWaitTime1(remain, birth, death);
@@ -588,7 +665,7 @@ void sample_dup_times_subtree(double *times, int *ptree, int **ftree,
 
         const int snode = recon[node];
         for (int i=0; i<2; i++) {
-            const int child = ftree[node][i];
+            const int child = itree[node].child[i];
             if (events[child] == EVENT_DUP && recon[child] == snode) {
                 // push child on to stack
                 stack[stack_len++] = child;
@@ -600,15 +677,12 @@ void sample_dup_times_subtree(double *times, int *ptree, int **ftree,
 
 
 void sample_dup_times(double *times,
-                      int *ptree, int nnodes, int *pstree, int nsnodes,
+                      intnode *itree, int nnodes, int *pstree, int nsnodes,
                       double *stimes,
                       int *recon, int *events, double birth, double death,
-                      double pretime, double premean)
+                      double pretime, double premean, int *stack)
 {
-    // get stree forwards tree (TODO: make this supplied)
-    int **ftree;
-    makeFtree(nnodes, ptree, &ftree);
-    int *stack = new int [nnodes]; // TODO: make this supplied too
+    
 
     const int root = nnodes - 1;
     const int sroot = nsnodes - 1;
@@ -618,7 +692,7 @@ void sample_dup_times(double *times,
     if (events[root] != EVENT_SPEC) {
         int snode;
         double start_time, time_span;
-
+        
         if (recon[root] != sroot) {
             // tree root is a dup within species tree
             snode = recon[root];
@@ -637,8 +711,8 @@ void sample_dup_times(double *times,
             start_time = stimes[sroot] + pretime;
             time_span = pretime;
         }
-
-        sample_dup_times_subtree(times, ptree, ftree, 
+        
+        sample_dup_times_subtree(times, itree, 
                                  start_time, time_span, 
                                  root, 
                                  recon, events,
@@ -647,7 +721,7 @@ void sample_dup_times(double *times,
 
     // set times
     for (int node=nnodes-1; node>=0; node--) {
-        const int parent = ptree[node];
+        const int parent = itree[node].parent;
         const int snode = recon[node];
 
         if (events[node] == EVENT_SPEC) {
@@ -659,10 +733,10 @@ void sample_dup_times(double *times,
         {
             // set duplication times within duplication subtree
             // node is duproot
-            const double start_time = stimes[pstree[parent]];
+            const double start_time = stimes[pstree[snode]];
             const double time_span = start_time - stimes[snode];
-
-            sample_dup_times_subtree(times, ptree, ftree, 
+            
+            sample_dup_times_subtree(times, itree, 
                                      start_time, time_span, 
                                      node, 
                                      recon, events,
@@ -672,11 +746,6 @@ void sample_dup_times(double *times,
             times[node] = 0.0;
         }
     }
-    
-
-    // deallocates 'forward tree'
-    freeFtree(nnodes, ftree);
-    delete [] stack;
 }
 
 
@@ -688,34 +757,37 @@ double prob_locus_coal_recon_topology_samples(
     int *pstree, int nsnodes, double *stimes,
     int *daughters, int ndaughters, 
     double birth, double death,
-    int nsamples)
+    int nsamples, double pretime, double premean)
 {
+    // alloc datastructures
     double *ltimes = new double [nlocus_nodes];
+    intnode *iltree = make_itree(nlocus_nodes, plocus_tree);
+    int *stack = new int [nnodes];
     
-    // TODO: make parameters
-    double pretime = -1, premean = 100;
-
     // integrate over duplication times using sampling
     double prob = -INFINITY;
     for (int i=0; i<nsamples; i++) {
         // sample duplication times
         sample_dup_times(ltimes,
-                         plocus_tree, nlocus_nodes, pstree, nsnodes,
+                         iltree, nlocus_nodes, pstree, nsnodes,
                          stimes,
                          locus_recon, locus_events, birth, death,
-                         pretime, premean);
-
+                         pretime, premean, stack);
+        
         // coal topology probability
         double const coal_prob = prob_locus_coal_recon_topology(
             ptree, nnodes, recon, 
-            plocus_tree, nlocus_nodes, 
+            plocus_tree, iltree, nlocus_nodes, 
             popsizes, ltimes,
             daughters, ndaughters);
 
         prob = logadd(prob, coal_prob);
     }
 
+    // clean up
     delete [] ltimes;
+    free_itree(iltree);
+    delete [] stack;
 
     return prob;
 }
