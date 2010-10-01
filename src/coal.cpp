@@ -13,40 +13,6 @@ namespace dlcoal
 
 extern "C" {
 
-
-
-// The probabiluty of going from 'a' lineages to 'b' lineages in time 't'
-// with population size 'n'
-double prob_coal_counts(int a, int b, double t, double n)
-{
-    double C = 1.0;
-    
-    for (int y=0; y<b; y++)
-        C *= (b+y)*(a-y)/double(a+y);
-
-    double s = exp(-b*(b-1)*t/2.0/n) * C;
-
-    for (int k=b+1; k<a+1; k++) {
-        const double k1 = double(k - 1);
-        C *= double(b+k1)*(a-k1)/(a+k1)/(b-k);
-        s += exp(-k*k1*t/2.0/n) * (2*k-1) / double(k1+b) * C;
-    }
-    
-    for (int i=1; i<=b; i++)
-        s /= i;
-
-    return s;
-}
-
-
-double num_labeled_histories(int nleaves, int nroots)
-{
-    double n = 1.0;
-    for (int i=nroots + 1; i<=nleaves; i++)
-        n *= i * (i - 1) / 2.0;
-    return n;
-}
-
 class LineageCounts
 {
 public:
@@ -114,6 +80,39 @@ public:
 
 
 //=============================================================================
+
+// The probabiluty of going from 'a' lineages to 'b' lineages in time 't'
+// with population size 'n'
+double prob_coal_counts(int a, int b, double t, double n)
+{
+    double C = 1.0;
+    
+    for (int y=0; y<b; y++)
+        C *= (b+y)*(a-y)/double(a+y);
+
+    double s = exp(-b*(b-1)*t/2.0/n) * C;
+
+    for (int k=b+1; k<a+1; k++) {
+        const double k1 = double(k - 1);
+        C *= double(b+k1)*(a-k1)/(a+k1)/(b-k);
+        s += exp(-k*k1*t/2.0/n) * (2*k-1) / double(k1+b) * C;
+    }
+    
+    for (int i=1; i<=b; i++)
+        s /= i;
+
+    return s;
+}
+
+
+double num_labeled_histories(int nleaves, int nroots)
+{
+    double n = 1.0;
+    for (int i=nroots + 1; i<=nleaves; i++)
+        n *= i * (i - 1) / 2.0;
+    return n;
+}
+
 
 // Returns the count of gene lineages present at each node in the species
 // tree 'tree' given a gene tree 'tree' and reconciliation 'recon'
@@ -372,14 +371,136 @@ double prob_locus_coal_recon_topology(int *ptree, int nnodes, int *recon,
                                       double *popsizes, double *ltimes,
                                       int *daughters, int ndaughters)
 {
-    double p = prob_multicoal_recon_topology2(ptree, nnodes, recon, 
-                                              plocus_tree, nlocus_nodes, 
-                                              ltimes, popsizes);
+    double lnp = prob_multicoal_recon_topology2(ptree, nnodes, recon, 
+                                                plocus_tree, nlocus_nodes, 
+                                                ltimes, popsizes);
+
+    int **fltree;
+    makeFtree(nlocus_nodes, plocus_tree, &fltree);
+
+
+    const int nleaves = (nnodes + 1) / 2;
 
     // TODO: finish
+    ProbCounts prob_counts(nlocus_nodes);
+    int *stack = new int [nnodes];
+    int stack_len = 0;
 
-    return p;
+    int *gene_counts = new int [nlocus_nodes];
+    int *subleaves = new int [nlocus_nodes];
+    int nsubleaves;
+
+    LineageCounts counts(nlocus_nodes);
+    count_lineages_per_branch(&counts, ptree, nnodes, recon, 
+                              plocus_tree, nlocus_nodes);
+
+    // make daughter set
+    bool *daughters_set = new bool [nlocus_nodes];
+    for (int i=0; i<nlocus_nodes; i++) daughters_set[i] = false;
+    for (int i=0; i<ndaughters; i++) daughters_set[daughters[i]] = true;
+
+    // find relevant subtree
+    for (int i=0; i<ndaughters; i++) {
+        const int daughter = daughters[i];
+
+        // determine leaves of the coal subtree
+        stack_len = 1;
+        stack[0] = daughter;
+        nsubleaves = 0;
+        for (int stack_i=0; stack_i<stack_len; stack_i++) {
+            const int lnode = stack[stack_i];
+            if (lnode < nleaves) {
+                // leaf
+                gene_counts[lnode] = counts.starts[lnode];
+                subleaves[nsubleaves++] = lnode;
+            } else {
+                for (int i=0; i<2; i++) {
+                    const int child = fltree[lnode][i];
+                    if (daughters_set[child]) {
+                        gene_counts[child] = 1;
+                        subleaves[nsubleaves++] = child;
+                    } else {
+                        // push child
+                        stack[stack_len++] = child;
+                    }
+                }
+            }
+        }
+        
+        const double T = ltimes[plocus_tree[daughter]];
+        calc_prob_counts_table(&prob_counts,
+                               gene_counts, T, 
+                               plocus_tree, nlocus_nodes, 
+                               popsizes,
+                               daughter, subleaves, nsubleaves,
+                               ltimes);
+        lnp -= log(prob_counts.ends[daughter][1]);
+
+        if (lnp == -INFINITY)
+            break;
+    }
+
+
+     // deallocates 'forward tree'
+    freeFtree(nlocus_nodes, fltree);
+
+    delete [] stack;
+
+    return lnp;
 }
+
+
+    /*
+def prob_locus_coal_recon_topology(tree, recon, locus_tree, n, daughters):
+    """
+    Returns the log probability of a reconciled gene tree ('tree', 'recon')
+    from the coalescent model given a locus tree 'locus_tree',
+    population sizes 'n', and daughters set 'daughters'
+    """
+
+    # initialize popsizes, lineage counts, and divergence times
+    popsizes = coal.init_popsizes(locus_tree, n)
+    lineages = coal.count_lineages_per_branch(tree, recon, locus_tree)
+    locus_times = treelib.get_tree_timestamps(locus_tree)
+
+
+    # calc log probability
+    lnp = coal.prob_multicoal_recon_topology(
+        tree, recon, locus_tree, popsizes, lineages=lineages)
+    
+
+    def walk(node, gene_counts, leaves):
+        if node.is_leaf():
+            gene_counts[node.name] = lineages[node][0]
+            leaves.add(node)
+        else:
+            for child in node.children:
+                if child in daughters:
+                    gene_counts[child.name] = 1
+                    leaves.add(child)
+                else:
+                    walk(child, gene_counts, leaves)
+
+    for daughter in daughters:
+        # determine leaves of the coal subtree
+        gene_counts = {}
+        leaves = set()
+        walk(daughter, gene_counts, leaves)
+
+        p = coal.cdf_mrca_bounded_multicoal(
+            gene_counts, locus_times[daughter.parent], locus_tree, popsizes,
+            sroot=daughter, sleaves=leaves, stimes=locus_times)
+
+        if p == -util.INF:
+            return -util.INF
+
+        lnp -= p
+    
+    return lnp
+
+
+
+    */
 
 //=============================================================================
 // events
@@ -600,60 +721,6 @@ double prob_locus_coal_recon_topology_samples(
 }
 
 
-    /*
-
-
-
-def prob_locus_coal_recon_topology(tree, recon, locus_tree, n, daughters):
-    """
-    Returns the log probability of a reconciled gene tree ('tree', 'recon')
-    from the coalescent model given a locus tree 'locus_tree',
-    population sizes 'n', and daughters set 'daughters'
-    """
-
-    # initialize popsizes, lineage counts, and divergence times
-    popsizes = coal.init_popsizes(locus_tree, n)
-    lineages = coal.count_lineages_per_branch(tree, recon, locus_tree)
-    locus_times = treelib.get_tree_timestamps(locus_tree)
-
-
-    # calc log probability
-    lnp = coal.prob_multicoal_recon_topology(
-        tree, recon, locus_tree, popsizes, lineages=lineages)
-    
-
-    def walk(node, gene_counts, leaves):
-        if node.is_leaf():
-            gene_counts[node.name] = lineages[node][0]
-            leaves.add(node)
-        else:
-            for child in node.children:
-                if child in daughters:
-                    gene_counts[child.name] = 1
-                    leaves.add(child)
-                else:
-                    walk(child, gene_counts, leaves)
-
-    for daughter in daughters:
-        # determine leaves of the coal subtree
-        gene_counts = {}
-        leaves = set()
-        walk(daughter, gene_counts, leaves)
-
-        p = coal.cdf_mrca_bounded_multicoal(
-            gene_counts, locus_times[daughter.parent], locus_tree, popsizes,
-            sroot=daughter, sleaves=leaves, stimes=locus_times)
-
-        if p == -util.INF:
-            return -util.INF
-
-        lnp -= p
-    
-    return lnp
-
-
-
-    */
 
 
 }
