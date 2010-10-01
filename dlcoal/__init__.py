@@ -33,7 +33,7 @@ except ImportError:
 
 
 # rasmus libs
-from rasmus import util, treelib
+from rasmus import stats, util, treelib
 
 # compbio libs
 from compbio import birthdeath
@@ -272,12 +272,15 @@ class DLCoalReconProposer (object):
                                       self._gene2species)
         locus_events = phylo.label_events(locus_tree, locus_recon)
 
-        # propose daughters (TODO)
-        daughters = set()
-
         # propose LCA coal_recon
         coal_recon = phylo.reconcile(self._coal_tree,
                                      locus_tree, lambda x: x)
+
+        # propose daughters (TODO)
+        daughters = self._propose_daughters(
+            self._coal_tree, coal_recon,
+            locus_tree, locus_recon, locus_events)
+
 
         self._coal_recon_enum = phylo.enum_recon(
             self._coal_tree, locus_tree,
@@ -287,6 +290,25 @@ class DLCoalReconProposer (object):
 
         return Recon(coal_recon, locus_tree, locus_recon, locus_events,
                      daughters)
+
+
+    def _propose_daughters(self, coal_tree, coal_recon,
+                           locus_tree, locus_recon, locus_events):
+        
+        lineages = coal.count_lineages_per_branch(
+            coal_tree, coal_recon, locus_tree)
+        daughters = set()
+        
+        for node, event in locus_events.iteritems():
+            if event == "dup":
+                # choose one of the children of node to be a daughter
+                children = [child for child in node.children
+                            if lineages[child][1] == 1]
+                if len(children) > 0:
+                    daughters.add(children[stats.sample([1] * len(children))])
+
+        
+        return daughters
 
 
     def accept(self):
@@ -406,18 +428,12 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
     
     # integrate over duplication times using sampling
     stimes = treelib.get_tree_timestamps(stree)
-    prob = coal.prob_locus_coal_recon_topology_samples(
+    prob = prob_locus_coal_recon_topology_samples(
         coal_tree, coal_recon,
         locus_tree, locus_recon, locus_events, popsizes,
         stree, stimes,
-        daughters, duprate, lossrate, nsamples, pretime, premean)
-
-    #prob = prob_locus_coal_recon_topology_samples(
-    #    coal_tree, coal_recon,
-    #    locus_tree, locus_recon, locus_events, popsizes,
-    #    stree, stimes,
-    #    daughters, duprate, lossrate, nsamples,
-    #    pretime, premean)
+        daughters, duprate, lossrate, nsamples,
+        pretime, premean)
 
     
     # logging info
@@ -437,23 +453,32 @@ def prob_locus_coal_recon_topology_samples(
         daughters, duprate, lossrate, nsamples,
         pretime=None, premean=None):
     
-    prob = 0.0
-    for i in xrange(nsamples):
-        # sample duplication times
-        locus_times = duploss.sample_dup_times(
-            locus_tree, stree, locus_recon, duprate, lossrate, pretime,
-            premean,
-            events=locus_events)
-        treelib.set_dists_from_timestamps(locus_tree, locus_times)
+    if dlcoalc:
+        # use C code
+        return coal.prob_locus_coal_recon_topology_samples(
+            coal_tree, coal_recon,
+            locus_tree, locus_recon, locus_events, popsizes,
+            stree, stimes,
+            daughters, duprate, lossrate, nsamples, pretime, premean)
+    else:
+        # python backup    
+        prob = 0.0
+        for i in xrange(nsamples):
+            # sample duplication times
+            locus_times = duploss.sample_dup_times(
+                locus_tree, stree, locus_recon, duprate, lossrate, pretime,
+                premean,
+                events=locus_events)
+            treelib.set_dists_from_timestamps(locus_tree, locus_times)
 
-        # coal topology probability
-        coal_prob = coal.prob_locus_coal_recon_topology(
-            coal_tree, coal_recon, locus_tree, popsizes, daughters)
-        
-        prob += exp(coal_prob)
-    prob = util.safelog(prob)
+            # coal topology probability
+            coal_prob = prob_locus_coal_recon_topology(
+                coal_tree, coal_recon, locus_tree, popsizes, daughters)
+            
+            prob += exp(coal_prob)
+        prob = util.safelog(prob)
 
-    return prob
+        return prob
 
 
 def prob_locus_coal_recon_topology(tree, recon, locus_tree, n, daughters):
@@ -470,9 +495,8 @@ def prob_locus_coal_recon_topology(tree, recon, locus_tree, n, daughters):
 
 
     # calc log probability
-    lnp = coal.prob_multicoal_recon_topology(
+    lnp = coal.pmrt(
         tree, recon, locus_tree, popsizes, lineages=lineages)
-    
 
     def walk(node, gene_counts, leaves):
         if node.is_leaf():

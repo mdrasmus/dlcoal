@@ -262,14 +262,15 @@ double prob_multicoal_recon_topology(int *ptree, int nnodes, int *recon,
     for (int snode=0; snode<nsnodes-1; snode++) {
         const int a = counts.starts[snode];
         const int b = counts.ends[snode];
-        if (a == b)
-            continue;
+        //if (a == 1)
+        //    continue;
 
         const int n = top_stats.nodes_per_species[snode];
         double fact=1.0; for (int i=2; i<=n; i++) fact *= i; // fact(n)
             
-        lnp += log(prob_coal_counts(a, b, sdists[snode], popsizes[snode])
+        double p = log(prob_coal_counts(a, b, sdists[snode], popsizes[snode])
                    * fact / num_labeled_histories(a, b));
+        lnp += p;
     }
 
     // root branch
@@ -305,7 +306,7 @@ double prob_multicoal_recon_topology2(intnode *itree, int nnodes, int *recon,
     for (int snode=0; snode<nsnodes-1; snode++) {
         const int a = counts.starts[snode];
         const int b = counts.ends[snode];
-        if (a == b)
+        if (a == 1)
             continue;
 
         const int n = top_stats.nodes_per_species[snode];
@@ -356,14 +357,11 @@ void calc_prob_counts_table(ProbCounts *prob_counts,
     // post-order traversal of species tree
     for (int stack_i=0; stack_i<stack_len; stack_i++) {
         const int snode = stack[stack_i];
-        
-        // reached root
-        if (snode == sroot)
-            break;
 
         // push parent
+        // reached root
         const int sparent = istree[snode].parent;
-        if (sparent >= 0)
+        if (snode != sroot && sparent >= 0)
             if (++stack_pushes[sparent] == 2)
                 stack[stack_len++] = sparent;
 
@@ -373,7 +371,7 @@ void calc_prob_counts_table(ProbCounts *prob_counts,
         if (stack_i < nsleaves) {
             // leaf case
             M = gene_counts[snode];
-
+            
             // populate starting lineage counts
             start = new double [M+1];
             for (int i=0; i<M; i++) start[i] = 0.0;
@@ -385,7 +383,6 @@ void calc_prob_counts_table(ProbCounts *prob_counts,
             const int M1 = sizes[c1];
             const int M2 = sizes[c2];
             M = M1 + M2; // max lineage counts in this snode
-            
             double *end1 = prob_counts->ends[c1];
             double *end2 = prob_counts->ends[c2];
 
@@ -407,7 +404,7 @@ void calc_prob_counts_table(ProbCounts *prob_counts,
         double *end = new double [M+1];
         if (ptime < 0) {
             // unbounded end time, i.e. complete coalescence
-            for (int i=0; i<M+1; i++) end[i] = 0.0;
+            for (int i=0; i<=M; i++) end[i] = 0.0;
             end[1] = 1.0;
         } else {
             // fixed end time
@@ -416,7 +413,7 @@ void calc_prob_counts_table(ProbCounts *prob_counts,
             end[0] = 0.0;
             for (int k=1; k<=M; k++) {
                 end[k] = 0.0;
-                for (int i=k; k<=M; k++) 
+                for (int i=k; i<=M; i++) 
                     end[k] += prob_coal_counts(i, k, t, n) * start[i];
             }
         }
@@ -424,9 +421,6 @@ void calc_prob_counts_table(ProbCounts *prob_counts,
         prob_counts->starts[snode] = start;
         prob_counts->ends[snode] = end;
     }
-
-    // deallocates 'forward tree'
-    free_itree(istree);
 
     delete [] sizes;
 }
@@ -444,7 +438,9 @@ double prob_locus_coal_recon_topology(int *ptree, int nnodes, int *recon,
         own_iltree = true;
         iltree = make_itree(nlocus_nodes, plocus_tree);
     }
-    double lnp = prob_multicoal_recon_topology2(iltree, nnodes, recon, 
+    intnode *itree = make_itree(nnodes, ptree);
+
+    double lnp = prob_multicoal_recon_topology2(itree, nnodes, recon, 
                                                 plocus_tree, nlocus_nodes, 
                                                 ltimes, popsizes);
 
@@ -494,7 +490,7 @@ double prob_locus_coal_recon_topology(int *ptree, int nnodes, int *recon,
                 }
             }
         }
-        
+
         const double T = ltimes[plocus_tree[daughter]];
         calc_prob_counts_table(&prob_counts,
                                gene_counts, T, 
@@ -512,6 +508,7 @@ double prob_locus_coal_recon_topology(int *ptree, int nnodes, int *recon,
      // deallocates 'forward tree'
     if (own_iltree)
         free_itree(iltree);
+    free_itree(itree);
 
     delete [] stack;
     delete [] gene_counts;
