@@ -24,7 +24,6 @@ o = optparse.OptionParser()
 o.add_option("-o", "--outputdir", dest="outputdir",
              metavar="OUTPUT_DIR", default="simulations")
 o.add_option("-s", "--stree", dest="stree", metavar="SPECIES_TREE")
-o.add_option("-S", "--smap", dest="smap", metavar="GENE_TO_SPECIES_MAP")
 o.add_option("-n", "--popsize", dest="popsize", metavar="POPULATION_SIZE",
              type="float")
 o.add_option("-D", "--duprate", dest="duprate", metavar="DUPLICATION_RATE",
@@ -44,7 +43,6 @@ conf, args = o.parse_args()
 # read inputs
 
 stree = treelib.read_tree(conf.stree)
-smap = phylo.read_gene2species(conf.smap)
 outdir = conf.outputdir
 
 # convert species tree into generations

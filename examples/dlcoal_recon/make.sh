@@ -74,6 +74,12 @@ phylofiles -e data/flies .dlcoal.locus.recon | wc -l
 # view a dlcoal reconstruction
 view_recon -s config/flies.stree -g .1 data/flies/0/0.dlcoal
 
+# run dlcoal once
+dlcoal_recon -i 100 --nsamples 1 \
+        -s config/flies.stree -S config/flies.smap \
+        -n 1e7 -D .0012 -L .0011 -g .1 -I .coal.tree -O .dlcoal \
+    data/flies/0/0.coal.tree
+
 
 
 # get dlcoal relations and compare them to the truth

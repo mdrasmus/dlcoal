@@ -13,6 +13,8 @@ except ImportError:
     sys.path.append(dirname(dirname(sys.argv[0])))
     import dlcoal
 
+import dlcoal.recon
+
 # import rasmus, compbio libs
 from rasmus import util,  treelib
 from compbio import phylo, birthdeath
@@ -81,7 +83,7 @@ else:
 
 # perform reconciliation
 #  NOTE: popsize is multiplied by 2 to account for diploid species
-maxrecon = dlcoal.dlcoal_recon(
+maxrecon = dlcoal.recon.dlcoal_recon(
     coal_tree, stree, smap, 2*conf.popsize, duprate, lossrate,
     premean=.5 * times[stree.root],
     nsamples=conf.nsamples,
