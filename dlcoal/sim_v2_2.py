@@ -292,7 +292,7 @@ def generate_extras(stree, gtree, freqdup, \
             # rename gene to comprehensible name
             gtree.rename(gnode.name, genename(snname, gnode.name))
         else: # extinction? shouldn't encounter this case
-            assert False # TODO: make a better assertion
+            assert False
         
         for gchild in gnode.children:
             walk(gchild)
@@ -328,12 +328,6 @@ def sample_dlcoal_no_ifix(stree, n, freq, duprate, lossrate, freqdup, freqloss,\
     else:
         # simulate coalescence
         
-        # edit: taken care of in preprocessing (outside of this file)
-#        # TODO: probably requires locus_tree dists in years (or generations), not myr
-#        locus_tree_copy = locus_tree.copy()
-#        for node in locus_tree_copy:
-#            node.dist *= 1e6 # myr -> yr
-        
         # daughters already chosen: locus_extras['daughters']
         daughters = locus_extras['daughters']
         # removed locus_tree_copy from below
@@ -357,11 +351,6 @@ def sample_dlcoal_no_ifix(stree, n, freq, duprate, lossrate, freqdup, freqloss,\
              "coal_tree": coal_tree,
              "coal_recon": coal_recon,
              "daughters": daughters}
-
-    # edit: removed with locus_tree scaling removal
-#    # TODO: this may need to be changed/fixed
-#    for cnode in coal_tree:
-#        cnode.dist /= 1e6
 
     return coal_tree, extra
 
