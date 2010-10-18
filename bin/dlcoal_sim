@@ -34,6 +34,8 @@ o.add_option("-g", "--gentime", dest="gentime", metavar="GENRATION_TIME",
              type="float")
 o.add_option("-i", "--iter", dest="iter", metavar="NUMBER_OF_SIMULATION",
              type="int", default=1)
+o.add_option("", "--minsize", dest="minsize", metavar="MIN_NUMBER_OF_LEAVES",
+             type="int", default=0)
 
 
 conf, args = o.parse_args()
@@ -56,6 +58,7 @@ times = treelib.get_tree_timestamps(stree)
 # perform simulations
 
 # NOTE: use 2*n for diploid species
-dlcoal.dlcoal_sims(outdir, conf.iter, stree, 2*conf.popsize, duprate, lossrate)
+dlcoal.dlcoal_sims(outdir, conf.iter, stree, 2*conf.popsize, duprate, lossrate,
+                   minsize=conf.minsize)
 
 
