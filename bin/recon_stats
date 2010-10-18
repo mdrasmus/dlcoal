@@ -13,7 +13,7 @@ except ImportError:
 
 # import rasmus, compbio libs
 from rasmus import util,  treelib
-from compbio import phylo, birthdeath
+from compbio import phylo
 
 
 #=============================================================================

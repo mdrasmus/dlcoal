@@ -14,13 +14,15 @@ except ImportError:
 
 # import rasmus, compbio libs
 from rasmus import util,  treelib
-from compbio import phylo, birthdeath
+from compbio import phylo
 
 
 #=============================================================================
 # options
 
 o = optparse.OptionParser()
+o.add_option("-o", "--outputdir", dest="outputdir",
+             metavar="OUTPUT_DIR", default="simulations")
 o.add_option("-s", "--stree", dest="stree", metavar="SPECIES_TREE")
 o.add_option("-S", "--smap", dest="smap", metavar="GENE_TO_SPECIES_MAP")
 o.add_option("-n", "--popsize", dest="popsize", metavar="POPULATION_SIZE",
@@ -31,34 +33,19 @@ o.add_option("-L", "--lossrate", dest="lossrate", metavar="LOSS_RATE",
              type="float")
 o.add_option("-g", "--gentime", dest="gentime", metavar="GENRATION_TIME",
              type="float")
-o.add_option("-i", "--iter", dest="iter", metavar="ITERATIONS",
-             type="int", default=10)
-o.add_option("-I", "--inext", dest="inext", metavar="INPUT_EXT",
-             default="")
-o.add_option("-O", "--outext", dest="outext", metavar="OUTPUT_EXT",
-             default="dlcoal")
-o.add_option("-l", "--log", dest="log", metavar="LOG_FILE")
-
-
-g = optparse.OptionGroup(o, "Miscellaneous")
-o.add_option_group(g)
-g.add_option("", "--nsamples", dest="nsamples", metavar="NUM_SAMPLES",
-             type="int", default=100)
+o.add_option("-i", "--iter", dest="iter", metavar="NUMBER_OF_SIMULATION",
+             type="int", default=1)
 
 
 conf, args = o.parse_args()
 
-if len(args) == 0:
-    o.print_help()
-    sys.exit(1)
-    
 
 #=============================================================================
 # read inputs
-treefile = args[0]
+
 stree = treelib.read_tree(conf.stree)
 smap = phylo.read_gene2species(conf.smap)
-coal_tree = treelib.read_tree(treefile)
+outdir = conf.outputdir
 
 # convert species tree into generations
 for node in stree:
@@ -67,23 +54,10 @@ duprate = conf.duprate / (1e6 / conf.gentime)
 lossrate = conf.lossrate / (1e6 / conf.gentime)
 times = treelib.get_tree_timestamps(stree)
 
-if conf.log:
-    log_out = open(conf.log, "w")
-else:
-    log_out = open(
-        util.replace_ext(treefile, conf.inext, conf.outext + ".log"), "w")
+#=============================================================================
+# perform simulations
 
-
-# perform reconciliation
-#  NOTE: popsize is multiplied by 2 to account for diploid species
-maxrecon = dlcoal.dlcoal_recon(
-    coal_tree, stree, smap, 2*conf.popsize, duprate, lossrate,
-    premean=.5 * times[stree.root],
-    nsamples=conf.nsamples,
-    nsearch=conf.iter, log=log_out)
-
-# write outputs
-out = util.replace_ext(treefile, conf.inext, conf.outext)
-dlcoal.write_dlcoal_recon(out, coal_tree, maxrecon)
+# NOTE: use 2*n for diploid species
+dlcoal.dlcoal_sims(outdir, conf.iter, stree, 2*conf.popsize, duprate, lossrate)
 
 
