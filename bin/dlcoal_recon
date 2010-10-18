@@ -47,6 +47,8 @@ g = optparse.OptionGroup(o, "Miscellaneous")
 o.add_option_group(g)
 g.add_option("", "--nsamples", dest="nsamples", metavar="NUM_SAMPLES",
              type="int", default=100)
+g.add_option("", "--nprescreen", dest="nprescreen", metavar="NUM_PRESCREENS",
+             type="int", default=20)
 g.add_option("-x", "--seed", dest="seed", metavar="RANDOM_SEED",
              type="int", default=None)
 
@@ -59,6 +61,8 @@ if len(args) == 0:
 
 
 random.seed(conf.seed)
+# TODO: see C too
+
 
 #=============================================================================
 # read inputs
@@ -86,11 +90,9 @@ else:
 maxrecon = dlcoal.recon.dlcoal_recon(
     coal_tree, stree, smap, 2*conf.popsize, duprate, lossrate,
     premean=.5 * times[stree.root],
-    nsamples=conf.nsamples,
+    nsamples=conf.nsamples, nprescreen=conf.nprescreen,
     nsearch=conf.iter, log=log_out)
 
 # write outputs
 out = util.replace_ext(treefile, conf.inext, conf.outext)
 dlcoal.write_dlcoal_recon(out, coal_tree, maxrecon)
-
-

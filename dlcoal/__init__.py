@@ -13,6 +13,7 @@ import os
 import sys
 import random
 from itertools import chain, izip
+import traceback
 from math import *
 
 
@@ -85,23 +86,9 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
     
     
     # duploss probability
-    try:
-        dl_prob = spidir.calc_birth_death_prior(
-            locus_tree, stree, locus_recon,
-            duprate, lossrate,
-            maxdoom=maxdoom)
-        
-    except Exception, e:
-        if "dlcoal_python_fallback" not in globals():
-            print >>sys.stderr, e
-            print >>sys.stderr, "warning: using python code instead of native"
-            globals()["dlcoal_python_fallback"] = 1
-            # spidir libs
-            from spidir import topology_prior
-            
-        dl_prob = topology_prior.dup_loss_topology_prior(
-            locus_tree, stree, locus_recon, duprate, lossrate,
-            maxdoom=maxdoom, events=locus_events)
+    dl_prob = prob_tree_birth_death(
+        locus_tree, stree, locus_recon, locus_events,
+        duprate, lossrate, maxdoom=maxdoom)
     
     # daughters probability
     dups = phylo.count_dup(locus_tree, locus_events)
@@ -121,7 +108,7 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
     if info is not None:
         info["duploss_prob"] = dl_prob
         info["daughters_prob"] = d_prob
-        info["coal_prob"] = util.safelog(prob / nsamples)
+        info["coal_prob"] = prob
         info["prob"] = dl_prob + d_prob + prob - log(nsamples)
     
     return dl_prob + d_prob + prob - log(nsamples)
@@ -135,6 +122,14 @@ def prob_locus_coal_recon_topology_samples(
         pretime=None, premean=None):
     
     if dlcoalc:
+        # sample some reason branch lengths just for logging purposes
+        locus_times = duploss.sample_dup_times(
+                locus_tree, stree, locus_recon, duprate, lossrate, pretime,
+                premean,
+                events=locus_events)
+        treelib.set_dists_from_timestamps(locus_tree, locus_times)
+        #treelib.draw_tree(locus_tree, scale=.0000001)
+
         # use C code
         return coal.prob_locus_coal_recon_topology_samples(
             coal_tree, coal_recon,
@@ -157,7 +152,7 @@ def prob_locus_coal_recon_topology_samples(
                 coal_tree, coal_recon, locus_tree, popsizes, daughters)
             
             prob += exp(coal_prob)
-        prob = util.safelog(prob)
+        prob = util.safelog(prob / nsamples)
 
         return prob
 
@@ -208,6 +203,28 @@ def prob_locus_coal_recon_topology(tree, recon, locus_tree, n, daughters):
     
     return lnp
 
+
+
+def prob_tree_birth_death(tree, stree, recon, events, duprate, lossrate,
+                          maxdoom=20):
+    try:
+        return spidir.calc_birth_death_prior(
+            tree, stree, recon, duprate, lossrate,
+            maxdoom=maxdoom, events=events)
+        
+    except Exception, e:
+        if "dlcoal_python_fallback" not in globals():
+            traceback.print_exception(type(e), e, sys.exc_info()[2],
+                                      file=sys.stderr)
+            print >>sys.stderr, "warning: using python code instead of native"
+            globals()["dlcoal_python_fallback"] = 1
+            # spidir libs
+            from spidir import topology_prior
+            
+        return topology_prior.dup_loss_topology_prior(
+            tree, stree, recon, duprate, lossrate,
+            maxdoom=maxdoom, events=events)
+    
 
 
 #=============================================================================
@@ -487,7 +504,7 @@ def read_log(filename):
     """Reads a DLCoal log"""
     stream = util.open_stream(filename)
     for line in stream:
-        yield eval(line)
+        yield eval(line, {"inf": util.INF})
   
 
 def read_log_all(filename):

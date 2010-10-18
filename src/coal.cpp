@@ -786,7 +786,7 @@ double prob_locus_coal_recon_topology_samples(
     free_itree(iltree);
     delete [] stack;
 
-    return prob;
+    return prob - log(nsamples);
 }
 
 

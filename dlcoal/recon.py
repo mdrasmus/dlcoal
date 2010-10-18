@@ -3,7 +3,7 @@ import sys, copy
 
 import dlcoal
 
-from rasmus import util, stats
+from rasmus import util, stats, treelib
 
 from compbio import phylo, coal
 
@@ -15,7 +15,7 @@ def dlcoal_recon(tree, stree, gene2species,
                  n, duprate, lossrate,
                  pretime=None, premean=None,
                  nsearch=1000,
-                 maxdoom=20, nsamples=100,
+                 maxdoom=20, nsamples=100, nprescreen=20,
                  search=None,
                  log=sys.stdout):
     """
@@ -33,7 +33,9 @@ def dlcoal_recon(tree, stree, gene2species,
     """
 
     if search is None:
-        search = DLCoalTreeSearch
+        search = lambda tree: DLCoalTreeSearch(tree, stree, gene2species,
+                                               duprate, lossrate,
+                                               nprescreen=nprescreen)
 
     reconer = DLCoalRecon(tree, stree, gene2species,
                           n, duprate, lossrate,
@@ -164,7 +166,7 @@ class DLCoalReconProposer (object):
 
     def __init__(self, coal_tree, stree, gene2species,
                  search=phylo.TreeSearchNni,
-                 num_coal_recons=5):
+                 num_coal_recons=1):  # DEBUG
         self._coal_tree = coal_tree
         self._stree = stree
         self._gene2species = gene2species
@@ -333,10 +335,37 @@ class Recon (object):
 
 class DLCoalTreeSearch (phylo.TreeSearch):
 
-    def __init__(self, tree, tree_hash=None):
+    def __init__(self, tree, stree, gene2species, duprate, lossrate,
+                 tree_hash=None, nprescreen=20, weight=.2):
         phylo.TreeSearch.__init__(self, tree)
-        self.search = UniqueTreeSearch(tree, phylo.TreeSearchNni(tree),
-                                       tree_hash)
+
+        self.stree = stree
+        self.gene2species = gene2species
+        self.duprate = duprate
+        self.lossrate = lossrate
+        
+        #self.search = UniqueTreeSearch(tree, phylo.TreeSearchNni(tree),
+        #                               tree_hash)
+        #self.search = UniqueTreeSearch(tree, phylo.TreeSearchSpr(tree),
+        #                               tree_hash)
+
+        mix = phylo.TreeSearchMix(tree)
+        mix.add_proposer(phylo.TreeSearchNni(tree), .4)
+        mix.add_proposer(phylo.TreeSearchSpr(tree), .6)        
+        #self.search = phylo.TreeSearchUnique(tree, mix, tree_hash)
+
+        prescreen = phylo.TreeSearchPrescreen(tree, mix,
+                                              self.prescreen,
+                                              poolsize=nprescreen)
+
+        mix2 = phylo.TreeSearchMix(tree)
+        mix2.add_proposer(prescreen, 1.0-weight)
+        mix2.add_proposer(mix, weight)
+
+        self.search = mix2
+        
+
+
 
     def set_tree(self, tree):
         self.tree = tree
@@ -346,55 +375,28 @@ class DLCoalTreeSearch (phylo.TreeSearch):
         self.search.reset()
 
     def propose(self):
-        self.tree = self.search.propose()
+        self.search.propose()
         #util.logger(self.search.search.node1, self.search.search.node2,
         #            self.search.search.child) 
         return self.tree
         
     def revert(self):
-        self.tree = self.search.revert()
+        self.search.revert()
         return self.tree
 
 
+    def prescreen(self, tree):
 
-class UniqueTreeSearch (phylo.TreeSearch):
+        maxdoom = 10
 
-    def __init__(self, tree, search, tree_hash=None, maxtries=5):
-        phylo.TreeSearch.__init__(self, tree)
-        self.search = search
-        self.seen = set()
-        self._tree_hash = tree_hash if tree_hash else phylo.hash_tree
-        self.maxtries = maxtries
+        recon = phylo.reconcile(tree, self.stree, self.gene2species)
+        events = phylo.label_events(tree, recon)
 
-    def set_tree(self, tree):
-        self.tree = tree
-        self.search.set_tree(tree)
-
-    def reset(self):
-        self.seen.clear()
-        self.search.reset()
+        #print tree.root.name
+        #treelib.draw_tree_names(tree, maxlen=8)
         
+        return dlcoal.prob_tree_birth_death(
+            tree, self.stree, recon, events,
+            self.duprate, self.lossrate, maxdoom=maxdoom)
 
-    def propose(self):
-
-        for i in xrange(self.maxtries):
-            if i > 0:
-                self.search.revert()
-            tree = self.search.propose()
-            top = self._tree_hash(tree)
-            if top not in self.seen:
-                #util.logger("tried", i, len(self.seen))
-                break
-        else:
-            pass
-            #util.logger("maxtries", len(self.seen))
-
-        self.seen.add(top)
-        self.tree = tree
-        return self.tree
-        
-
-    def revert(self):
-        self.tree = self.search.revert()
-        return self.tree
-
+    

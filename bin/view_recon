@@ -171,6 +171,7 @@ def draw_tree_recon(
     xscale=100, yscale=20, minlen=0, maxlen=util.INF,
 
     deepcoal=False,
+    events2=None,
     recon_color = (1, 0, 0, .5),
     colormap=None,
     rmargin=150, lmargin=10, tmargin=0, bmargin=None,
@@ -250,6 +251,10 @@ def draw_tree_recon(
     draw_recon(canvas, locus_recon, locus_events,
                locus_tree_layout, stree_layout,
                color=recon_color, deepcoal=deepcoal)
+
+
+    if events2:
+        draw_events(canvas, events2, stree_layout)
     
     canvas.endSvg()
 
@@ -295,15 +300,29 @@ def draw_recon(canvas, recon, events, tree1_layout, tree2_layout,
                       svg.colorFields(color, (0,0,0,0))))
 
 
+def draw_events(canvas, events, tree_layout,
+                dot_size=5, color=(1, 0, 0, .5)):
+
+    for node, (x, y) in tree_layout.iteritems():
+        if events[node] == "dup":
+            m = dot_size
+            canvas.rect(x-m, y-m, 2*m, 2*m, fillColor=color,
+                        strokeColor=None)
+
+            
+
 def show_data_files(prefix, stree,
                     locus_recon_color = (1, 0, 0, .5),
                     coal_recon_color = (0, 0, 1, .2)):
 
     locus_tree = treelib.read_tree(prefix + ".locus.tree")
 
-    if not conf.noduploss:
+    if stree:
         locus_recon, locus_events = phylo.read_recon_events(
             prefix + ".locus.recon", locus_tree, stree)
+    else:
+        locus_recon = None
+        locus_events = None
 
     if not conf.nocoal:
         coal_tree = treelib.read_tree(prefix + ".coal.tree")
@@ -328,9 +347,11 @@ def show_data_files(prefix, stree,
                         recon_color=locus_recon_color)
         
     elif conf.noduploss:
+        
         draw_tree_recon(coal_tree, coal_recon, None, locus_tree,
                         xscale=conf.xscale, filename=stream,
-                        recon_color=coal_recon_color, deepcoal=True)
+                        recon_color=coal_recon_color, deepcoal=True,
+                        events2=locus_events)
         
     else:
         draw_dlcoal_recon(coal_tree, coal_recon,
@@ -360,7 +381,7 @@ def show_log(data, coal_tree, stree,
 
     locus_tree = treelib.parse_newick(data["locus_tree"])
 
-    if not conf.noduploss:
+    if stree:
         locus_recon, locus_events = parse_recon(data["locus_recon"],
                                                 data["locus_events"],
                                                 locus_tree, stree)
@@ -388,7 +409,8 @@ def show_log(data, coal_tree, stree,
     elif conf.noduploss:
         draw_tree_recon(coal_tree, coal_recon, None, locus_tree,
                         xscale=conf.xscale, filename=stream,
-                        recon_color=coal_recon_color, deepcoal=True)
+                        recon_color=coal_recon_color, deepcoal=True,
+                        events2=locus_events)
         
     else:
         draw_dlcoal_recon(coal_tree, coal_recon,
@@ -405,12 +427,14 @@ def show_log(data, coal_tree, stree,
 #duprate = conf.duprate / (1e6 / conf.gentime)
 #lossrate = conf.lossrate / (1e6 / conf.gentime)
 
-if not conf.noduploss:
+if not conf.noduploss or conf.stree:
     stree = treelib.read_tree(conf.stree)
 
     # convert species tree into generations
     for node in stree:
         node.dist *= 1e6 / conf.gentime
+else:
+    stree = None
 
 if conf.log is not None:
     coal_tree = treelib.read_tree(
