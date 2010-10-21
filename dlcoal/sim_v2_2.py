@@ -14,7 +14,9 @@
 from math import *
 import random
 from rasmus import stats, treelib
-from compbio import coal, dlcoal, phylo
+#from compbio import coal, dlcoal, phylo
+from compbio import coal, phylo
+import dlcoal
 
 DEBUGPRINT = True
 
@@ -99,6 +101,7 @@ def sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forceti
             eventlog.append(ext_event)
             # set new_gnode's event log
             new_gnode.data['log'] = eventlog
+            eventlog = [] # should have no effect; added for debugging on 18 Oct 2010
         else: # put everything else in this block to avoid using returns
             p = min(p, 1.0) # sanity check
             eff_dr = dr * p # * popsize #??
@@ -126,10 +129,12 @@ def sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forceti
                                 s_walk_time=new_s_walk_time, \
                                 g_walk_time=new_g_walk_time, \
                                 eventlog=eventlog)
+                    eventlog = [] # should have no effect; debug add on 18 Oct 2010
                 else:
                     ## SPECIATION EVENT
                     # separate into separate root, non-root speciations
-                    if gnode.parent: # gnode not the root
+#                    if gnode.parent: # gnode not the root
+                    if gnode.data['log'][-1][1] != 'root':
                         # sample a new frequency (note scaling to years from myr) # edit: not any more
                         newp = coal.sample_freq_CDF(p, popsize, remaining_s_dist) # * 1e6)
                         # create new_gnode for this event
@@ -145,6 +150,7 @@ def sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forceti
                             eventlog.append(gene_event)
                             new_gnode.data['log'] = eventlog
                             # end of walk on species branch
+                            eventlog = [] # should have no effect; debug add on 18 Oct 2010
                         else:
                             spec_event = (new_g_walk_time, 'speciation', newp, snode.name)
                             eventlog.append(spec_event)
@@ -153,13 +159,19 @@ def sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forceti
                                 sim_walk(gtree, schild, new_gnode, newp, eventlog=[])
                               # TODO: if we decide not to reset time_until_force at
                               #  speciation events, this sim_walk call will need updating
+                            eventlog = [] # should have no effect; debug add on 18 Oct 2010
                     else: # gnode is the root
                         spec_event = (0.0, 'speciation', p, snode.name)
                         eventlog = gnode.data['log']
                         eventlog.append(spec_event)
                         gnode.data['log'] = eventlog
+#                        ### debug print
+#                        print
+#                        print 'adding: ', eventlog
+#                        ### end debug
                         for schild in snode.children:
                             sim_walk(gtree, schild, gnode, p, eventlog=[])
+                        eventlog = [] # should have no effect; debug add on 18 Oct 2010
             else:
                 # process D/L event
                 # no WF updates for these events (modelling decision)
@@ -188,6 +200,7 @@ def sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forceti
                                 s_walk_time=new_s_walk_time, \
                                 time_until_force = new_time_until_force, \
                                 eventlog=[(0.0,'daughter',freqdup,snode.name)]) # added for daughter detection
+                    eventlog = [] # should have no effect; debug add on 18 Oct 2010
                 else:
                     ## LOSS EVENT
                     newp = max(p - freqloss, 0.0) # sanity check
@@ -199,6 +212,7 @@ def sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forceti
                                 g_walk_time=new_g_walk_time, \
                                 time_until_force=new_time_until_force, \
                                 eventlog=eventlog)
+                    eventlog = [] # should have no effect; debug add on 18 Oct 2010
     
     
     # main code
@@ -213,12 +227,12 @@ def sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forceti
     sim_walk(gtree, stree.root, gtree.root, freq) # should mutate gtree
     
     
-    # remove dead branches and single children (inside last method)
-    # note that the simplifyRoot argument was added to the treelib methods
-    #  so that gtree.root.dist is always equal to 0.0 (and this allows the
-    #  root to have a single child)
-    #  if this behavior is undesired later, we can simply remove the argument
-    #  and the root will be collapsed (and have >0 dist)
+#    # remove dead branches and single children (inside last method)
+#    # note that the simplifyRoot argument was added to the treelib methods
+#    #  so that gtree.root.dist is always equal to 0.0 (and this allows the
+#    #  root to have a single child)
+#    #  if this behavior is undesired later, we can simply remove the argument
+#    #  and the root will be collapsed (and have >0 dist)
     extant_leaves = []
     for leaf in gtree.leaves():
         if leaf.data['freq'] > 0.0:
@@ -226,7 +240,7 @@ def sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forceti
     gtree = treelib.subtree_by_leaf_names(gtree, extant_leaves,
                                           keep_single=True)
     remove_single_children(gtree) # allows for correct logging of events
-    extras = generate_extras(stree, gtree, freqdup)
+    extras = generate_extras(stree, gtree)
     return gtree, extras
 
 
@@ -250,10 +264,13 @@ def remove_single_children(tree):
         newnode.dist += node.dist
         
         # update logs
-        for i in xrange(len(newnode.data['log'])):
-            newnode.data['log'][i] = (newnode.data['log'][i][0]+node.dist,) \
-                                        + newnode.data['log'][i][1:]
-        newnode.data['log'] = node.data['log'] + newnode.data['log']
+#        for i in xrange(len(newnode.data['log'])):
+#            newnode.data['log'][i] = (newnode.data['log'][i][0]+node.dist,) \
+#                                        + newnode.data['log'][i][1:]
+#        newnode.data['log'] = node.data['log'] + newnode.data['log']
+        newnode.data['log'] = node.data['log'][:] + \
+                                map(lambda x: (x[0]+node.dist,)+x[1:], \
+                                                newnode.data['log'])
         
         # change parent and child pointers
         newnode.parent = node.parent
@@ -269,8 +286,7 @@ def remove_single_children(tree):
 
 ## generate extra information from the logging in a gene tree
 ## based on birthdeath.sample_birth_death_gene_tree
-def generate_extras(stree, gtree, freqdup, \
-                    genename=lambda sp, x: sp + "_" + str(x)):
+def generate_extras(stree, gtree, genename=lambda sp, x: sp + "_" + str(x)):
     recon = {}
     events = {}
     daughters = set()
@@ -293,13 +309,100 @@ def generate_extras(stree, gtree, freqdup, \
             gtree.rename(gnode.name, genename(snname, gnode.name))
         else: # extinction? shouldn't encounter this case
             assert False
+#            events[gnode] = 'ext?'
         
         for gchild in gnode.children:
             walk(gchild)
     
     walk(gtree.root)
+#    walk(gtree.root.children[0])
     
     return {'recon': recon, 'events': events, 'daughters': daughters}
+
+
+def locus_to_logged_tree(ltree, popsize=1.0):
+    
+    ### note: ltree is the locus tree generated by the simulator
+    ###       lmctree is the new logged-locus tree (locus-multi-coal-tree)
+    
+    
+    # must have a valid locus tree (of the form from this simulator) passed in
+    assert ltree.root.data['log'][0][1] == 'root'
+    assert ltree.root.data['log'][-1][1] == 'speciation'
+    
+    # initializes new logged locus tree
+    lmctree = treelib.Tree()
+    lmctree.make_root()
+    lmctree.root.dist = ltree.root.dist # == 0
+#    lmctree.root.data['freq'] = ltree.root.data['freq'] # == starting freq
+    
+    # initialize the daughters set
+    daughters = set()
+    
+    # initialize the population pops dictionary
+    pops = {lmctree.root.name: popsize * ltree.root.data['freq']}
+    
+    # initialize the ltree to newltree recon
+    recon = {ltree.root.name: lmctree.root.name}
+    
+    
+    # main walking function
+    def walk(lnode, lmcparent):
+        
+        llog = lnode.data['log']
+        
+        # add a daughter placeholder node to the lmctree 
+        #  also include it in the daughters set
+        dlog = llog.pop(0) if llog[0][1] == 'daughter' else []
+        if dlog:
+            # add new placeholder node
+            new_lmcnode = treelib.TreeNode(lmctree.new_name())
+            new_lmcnode.dist = dlog[0] # == 0.0
+#            new_lmcnode.data['freq'] = dlog[2]
+            lmctree.add_child(lmcparent, new_lmcnode)
+            # add pops entry
+            pops[new_lmcnode.name] = popsize * dlog[2]
+            # add placeholder node to daughters set
+            daughters.add(new_lmcnode)
+            # set new parent in the chain
+            lmcparent = new_lmcnode
+        
+        prevdist = 0.0
+        
+        for i in xrange(len(llog)-1): # perform all actions except for the last node
+            # create and add new node
+            new_lmcnode = treelib.TreeNode(lmctree.new_name())
+            new_lmcnode.dist = llog[i][0] - prevdist
+#            new_lmcnode.data['freq'] = llog[i][2]
+            lmctree.add_child(lmcparent, new_lmcnode)
+            # add pops entry
+            pops[new_lmcnode.name] = popsize * llog[i][2]
+            # update loop parameters
+            prevdist = llog[i][0]
+            lmcparent = new_lmcnode
+        
+        # create and add node for last event (spec/dup)
+        new_lmcnode = treelib.TreeNode(lmctree.new_name())
+        new_lmcnode.dist = llog[-1][0] - prevdist
+#        new_lmcnode.data['freq'] = llog[-1][2]
+        lmctree.add_child(lmcparent, new_lmcnode)
+        # add pops entry
+        pops[new_lmcnode.name] = popsize * llog[-1][2]
+        # add recon entry
+        recon[lnode.name] = new_lmcnode.name
+        
+        # recurse down the ltree
+        for lchild in lnode.children:
+            walk(lchild, new_lmcnode)
+    
+    
+    for lchild in ltree.root.children:
+        walk(lchild, lmctree.root)
+    
+    extras = [daughters, pops, recon]
+    return lmctree, extras
+
+
 
 
 ## based on dlcoal.sample_dlcoal
@@ -328,11 +431,16 @@ def sample_dlcoal_no_ifix(stree, n, freq, duprate, lossrate, freqdup, freqloss,\
     else:
         # simulate coalescence
         
-        # daughters already chosen: locus_extras['daughters']
-        daughters = locus_extras['daughters']
+        # create new (expanded) locus tree
+        logged_locus_tree, logged_extras = locus_to_logged_tree(locus_tree, popsize = n)
+        daughters = logged_extras[0]
+        pops = logged_extras[1]
+#        log_recon = logged_extras[2]
+        
         # removed locus_tree_copy from below
-        coal_tree, coal_recon = dlcoal.sample_multicoal_tree(locus_tree, n,
-                                        daughters=daughters, namefunc=namefunc)
+        coal_tree, coal_recon = dlcoal.sample_locus_coal_tree(logged_locus_tree,
+                                        n=pops, daughters=daughters,
+                                        namefunc=namefunc)
 
         # clean up coal tree
         if remove_single:
@@ -345,6 +453,7 @@ def sample_dlcoal_no_ifix(stree, n, freq, duprate, lossrate, freqdup, freqloss,\
 
 
     # store extra information
+    ### TODO: update this now that we're using logged locus tree, new sample function
     extra = {"locus_tree": locus_tree,
              "locus_recon": locus_extras['recon'],
              "locus_events": locus_extras['events'],
@@ -356,72 +465,101 @@ def sample_dlcoal_no_ifix(stree, n, freq, duprate, lossrate, freqdup, freqloss,\
 
 
 
-
-
-if __name__ == "__main__":
-    stree = treelib.read_tree('simple.stree')
-#    print stree.root.name, stree.root.dist
-    popsize = 1e4
-    freq = 1e0
-    dr = 1.1 / 1e6
-    lr = 1.0 / 1e6
-    freqdup = .07
-    freqloss = .05
-    forcetime = 1e6 #1e0  # updated with species tree branch conversion
-    
+def debug_test1():
+    stree = treelib.read_tree('../examples/flies.stree')
     for node in stree:
-        node.dist *= 1e6
+        node.dist *= 1e7 # gen per myr
+    popsize = 2e7
+    freq = 1e0
+    dr = .0012/1e7
+    lr = .0006/1e7
+    freqdup = freqloss = .05
+    forcetime = 1e7
     
-    coal_tree, coal_extras = sample_dlcoal_no_ifix(stree, popsize, freq, \
-                                dr, lr, freqdup, freqloss,forcetime, minsize=3)
-    locus_tree = coal_extras['locus_tree']
+    ltree, ex = sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forcetime)
     
-    for daughter in coal_extras['daughters']:
-        print daughter.name
+    return stree, gtree, ex
+
+def debug_test2():
+    stree = treelib.read_tree('examples/flies.stree') # run from ../ of this directory
+    for node in stree:
+        node.dist *= 1e7 # gen per myr
+    popsize = 2e7
+    freq = 1e0
+    dr = .0012/1e7
+    lr = .0006/1e7
+    freqdup = freqloss = .05
+    forcetime = 1e7
     
-    treelib.draw_tree(stree,scale=.000002)
-    print
-    treelib.draw_tree(locus_tree,scale=.000002)
-    print
-    treelib.draw_tree(coal_tree,scale=.000002)
-    print
+#    ltree, ex = sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forcetime)
     
-#    gtree, extras = sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forcetime)
-#    treelib.draw_tree(stree, scale=1)
-#    print 
-#    for leaf in stree.leaves():
-#        print leaf.name, treelib.find_dist(stree, stree.root.name, leaf.name)
+    coal_tree, ex = sample_dlcoal_no_ifix(stree=stree, n=popsize, freq=freq, duprate=dr, lossrate=lr, freqdup=freqdup, freqloss=freqloss, forcetime=forcetime)
+
+
+#if __name__ == "__main__":
+#    stree = treelib.read_tree('simple.stree')
+##    print stree.root.name, stree.root.dist
+#    popsize = 1e4
+#    freq = 1e0
+#    dr = 1.1 / 1e6
+#    lr = 1.0 / 1e6
+#    freqdup = .07
+#    freqloss = .05
+#    forcetime = 1e6 #1e0  # updated with species tree branch conversion
+#    
+#    for node in stree:
+#        node.dist *= 1e6
+#    
+#    coal_tree, coal_extras = sample_dlcoal_no_ifix(stree, popsize, freq, \
+#                                dr, lr, freqdup, freqloss,forcetime, minsize=3)
+#    locus_tree = coal_extras['locus_tree']
+#    
+#    for daughter in coal_extras['daughters']:
+#        print daughter.name
+#    
+#    treelib.draw_tree(stree,scale=.000002)
 #    print
-#    treelib.draw_tree(gtree, scale=1)
+#    treelib.draw_tree(locus_tree,scale=.000002)
+#    print
+#    treelib.draw_tree(coal_tree,scale=.000002)
 #    print
 #    
-#    if len(gtree.nodes) > 1:
-#        for leaf in gtree.leaves():
-#            print leaf.name, treelib.find_dist(gtree,gtree.root.name,leaf.name), leaf.data['freq']
-#    else:
-#        print 'only the root remains'
-#    print
-    
-#    for gnode in gtree.nodes:
-#        print gnode, extras['recon'][gtree.nodes[gnode]].name
+##    gtree, extras = sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forcetime)
+##    treelib.draw_tree(stree, scale=1)
+##    print 
+##    for leaf in stree.leaves():
+##        print leaf.name, treelib.find_dist(stree, stree.root.name, leaf.name)
+##    print
+##    treelib.draw_tree(gtree, scale=1)
+##    print
+##    
+##    if len(gtree.nodes) > 1:
+##        for leaf in gtree.leaves():
+##            print leaf.name, treelib.find_dist(gtree,gtree.root.name,leaf.name), leaf.data['freq']
+##    else:
+##        print 'only the root remains'
+##    print
+#    
+##    for gnode in gtree.nodes:
+##        print gnode, extras['recon'][gtree.nodes[gnode]].name
 
-#    print gtree.root.dist, gtree.root.data['log']
-#    print len(gtree.root.children), gtree.root.children[0].dist, gtree.root.children[0].data['log']
-#    print gtree.leaves()[0].data['log']
+##    print gtree.root.dist, gtree.root.data['log']
+##    print len(gtree.root.children), gtree.root.children[0].dist, gtree.root.children[0].data['log']
+##    print gtree.leaves()[0].data['log']
 
-#    print gtree.leaves()[0].data['log']
-#
-#    removed = [node for node in gtree if len(node.children) == 1 and node.parent]
-#    print len(removed)
-#    ofinterest = [node for node in removed if node.children[0] not in removed]
-#    print len(ofinterest)
-#    print
-#    for i in ofinterest[0].parent.data['log']:
-#        print i
-#    for i in ofinterest[0].data['log']:
-#        print i
-#    print len(ofinterest[0].parent.data['log'] + ofinterest[0].data['log'])
-#    remove_single_children(gtree)
-#    print
-#    for i in ofinterest[0].data['log']:
-#        print i
+##    print gtree.leaves()[0].data['log']
+##
+##    removed = [node for node in gtree if len(node.children) == 1 and node.parent]
+##    print len(removed)
+##    ofinterest = [node for node in removed if node.children[0] not in removed]
+##    print len(ofinterest)
+##    print
+##    for i in ofinterest[0].parent.data['log']:
+##        print i
+##    for i in ofinterest[0].data['log']:
+##        print i
+##    print len(ofinterest[0].parent.data['log'] + ofinterest[0].data['log'])
+##    remove_single_children(gtree)
+##    print
+##    for i in ofinterest[0].data['log']:
+##        print i
