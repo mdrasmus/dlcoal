@@ -27,7 +27,8 @@ o.add_option("-g", "--gentime", dest="gentime", metavar="GENRATION_TIME",
              type="float")
 o.add_option("-v", "--viewer", dest="viewer", metavar="SVG_VIEWER",
              default="display")
-o.add_option("-x", "--xscale", dest="xscale", metavar="BRANCH_LENGTH_SCALE")
+o.add_option("-x", "--xscale", dest="xscale", metavar="BRANCH_LENGTH_SCALE",
+             type="float")
 o.add_option("-l", "--log", dest="log", metavar="DLCOAL_LOG_FILE")
 
 o.add_option("-d", "--noduploss", dest="noduploss", action="store_true")
@@ -36,6 +37,8 @@ o.add_option("-c", "--nocoal", dest="nocoal", action="store_true")
 
 g = optparse.OptionGroup(o, "Miscellaneous")
 g.add_option("-S", "--smap", dest="smap", metavar="GENE_TO_SPECIES_MAP")
+g.add_option("--cscale", dest="cscale", metavar="COAL_SCALE",
+             type="float")
 g.add_option("-n", "--popsize", dest="popsize", metavar="POPULATION_SIZE",
              type="float")
 g.add_option("-D", "--duprate", dest="duprate", metavar="DUPLICATION_RATE",
@@ -326,6 +329,29 @@ def show_data_files(prefix, stree,
 
     if not conf.nocoal:
         coal_tree = treelib.read_tree(prefix + ".coal.tree")
+
+        # TODO: clean up
+        if conf.cscale:
+            if conf.cscale < 0:
+                def walk(node):
+                    return (node.dist +
+                            max([0] +[walk(child)
+                                      for child in node.children]))
+                depth = walk(locus_tree.root)
+                depth2 = walk(coal_tree.root)
+                if depth2 == 0.0:
+                    for x in coal_tree:
+                        x.dist = 1
+                    depth2 = walk(coal_tree.root)
+                conf.cscale = depth / depth2
+                
+            if max(x.dist for x in coal_tree) == 0.0:
+                for x in coal_tree:
+                    x.dist = conf.cscale
+            else:
+                for x in coal_tree:
+                    x.dist *= conf.cscale
+
         coal_recon, coal_events = phylo.read_recon_events(
             prefix + ".coal.recon", coal_tree, locus_tree)
 

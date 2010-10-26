@@ -9,7 +9,7 @@
 #      X.locus.tree  -- locus tree
 #      X.daughters   -- daughter edges in locus tree
 #      X.locus.recon -- reconciliation from locus tree to species tree
-dlcoal_sim -i 1 -s config/flies.stree -S config/flies.smap \
+dlcoal_sim -i 100 -s config/flies.stree  \
     -n 1e7 -D .0012 -L .0011 -g .1 -o data/flies
 
 

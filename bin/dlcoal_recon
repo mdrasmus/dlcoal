@@ -78,6 +78,14 @@ duprate = conf.duprate / (1e6 / conf.gentime)
 lossrate = conf.lossrate / (1e6 / conf.gentime)
 times = treelib.get_tree_timestamps(stree)
 
+# remove bootstraps if they exist
+for node in coal_tree:
+    if "boot" in node.data:
+        del node.data["boot"]
+coal_tree.default_data.clear()
+
+
+
 if conf.log:
     log_out = open(conf.log, "w")
 else:
