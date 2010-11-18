@@ -342,6 +342,9 @@ def locus_to_logged_tree(ltree, popsize=1.0):
     # initialize the population pops dictionary
     pops = {lmctree.root.name: popsize * ltree.root.data['freq']}
     
+    # initialize the newltree to ltree reverse recon
+    revrecon = {lmctree.root.name: ltree.root.name}
+    
     # initialize the ltree to newltree recon
     recon = {ltree.root.name: lmctree.root.name}
     
@@ -388,8 +391,11 @@ def locus_to_logged_tree(ltree, popsize=1.0):
         lmctree.add_child(lmcparent, new_lmcnode)
         # add pops entry
         pops[new_lmcnode.name] = popsize * llog[-1][2]
+        # add revrecon entry
+        revrecon[lnode.name] = new_lmcnode.name
+        
         # add recon entry
-        recon[lnode.name] = new_lmcnode.name
+        recon[new_lmcnode.name] = lnode.name
         
         # recurse down the ltree
         for lchild in lnode.children:
@@ -399,7 +405,7 @@ def locus_to_logged_tree(ltree, popsize=1.0):
     for lchild in ltree.root.children:
         walk(lchild, lmctree.root)
     
-    extras = [daughters, pops, recon]
+    extras = [daughters, pops, recon, revrecon]
     return lmctree, extras
 
 
@@ -435,17 +441,23 @@ def sample_dlcoal_no_ifix(stree, n, freq, duprate, lossrate, freqdup, freqloss,\
         logged_locus_tree, logged_extras = locus_to_logged_tree(locus_tree, popsize = n)
         daughters = logged_extras[0]
         pops = logged_extras[1]
-#        log_recon = logged_extras[2]
+        log_recon = logged_extras[2]
+        
+#        treelib.assert_tree(logged_locus_tree)
         
         # removed locus_tree_copy from below
         coal_tree, coal_recon = dlcoal.sample_locus_coal_tree(logged_locus_tree,
                                         n=pops, daughters=daughters,
-                                        namefunc=namefunc)
+                                        namefunc=lambda lognamex: log_recon[lognamex] + '_' + str(lognamex))
 
+#        print set(coal_tree) - set(coal_tree.postorder())
+        treelib.assert_tree(coal_tree)
+    
         # clean up coal tree
         if remove_single:
             treelib.remove_single_children(coal_tree)
             phylo.subset_recon(coal_tree, coal_recon)
+
 
     if name_internal:
         dlcoal.rename_nodes(coal_tree, name_internal)
@@ -494,6 +506,78 @@ def debug_test2():
 #    ltree, ex = sim_DLILS_gene_tree(stree, popsize, freq, dr, lr, freqdup, freqloss, forcetime)
     
     coal_tree, ex = sample_dlcoal_no_ifix(stree=stree, n=popsize, freq=freq, duprate=dr, lossrate=lr, freqdup=freqdup, freqloss=freqloss, forcetime=forcetime)
+    
+    treelib.draw_tree(coal_tree, scale=.00000005)
+
+
+
+def debug_test3():
+    stree = treelib.read_tree('examples/nbin.stree') # run from ../ of this directory
+    for node in stree:
+        node.dist *= 1e7 # gen per myr
+    popsize = 2e7
+    freq = 1e0
+    dr = .0000012 / 1e7 #.0012/1e7
+    lr = .0000011 / 1e7 #.0006/1e7
+    freqdup = freqloss = .05
+    forcetime = 1e7
+    
+    for node in stree:
+        print node.name, node.dist, len(node.children)
+    print
+    
+    locus_tree, locus_extras = sim_DLILS_gene_tree(stree, popsize, freq, \
+                                                        dr, lr, \
+                                                        freqdup, freqloss, \
+                                                        forcetime)
+    
+    for node in locus_tree:
+        print node.name, node.dist, len(node.children)
+    print
+    
+    logged_locus_tree, logged_extras = locus_to_logged_tree(locus_tree, popsize)
+    daughters = logged_extras[0]
+    pops = logged_extras[1]
+    
+    coal_tree, coal_recon = dlcoal.sample_locus_coal_tree(logged_locus_tree,
+                                    n=pops, daughters=daughters,
+                                    namefunc=lambda x: logged_extras[2][x] + '_' + str(x))
+    
+    #begin debug
+    print coal_tree.leaf_names()
+    try:
+#        print set(coal_tree) - set(coal_tree.postorder())
+        treelib.assert_tree(coal_tree)
+    except AssertionError:
+        print 'assertion error thrown on coal_tree being a proper tree'
+        from rasmus import util
+        hd= util.hist_dict(x.name for x in coal_tree.postorder())
+        for key in hd.keys():
+            print key if hd[key]>1 else '',
+        print
+        print len(coal_tree.nodes) - len(list(coal_tree.postorder()))
+    
+
+
+
+#def debug_test3():
+#    testtree = treelib.parse_newick('(A:1,(C:1)B:1);')
+#    for node in testtree:
+#        node.dist *= 1e7
+#    pops = {}
+#    for i in testtree:
+#        pops[i.name] = 2e5
+#    daughters = set()
+#    namefunc = lambda x:x
+#    
+#    treelib.assert_tree(testtree)
+#    
+#    coal_tree, coal_recon = dlcoal.sample_locus_coal_tree(testtree,
+#                                        n=pops,
+#                                        daughters=daughters,
+#                                        namefunc=namefunc)
+#    
+#    treelib.assert_tree(coal_tree)
 
 
 #if __name__ == "__main__":
