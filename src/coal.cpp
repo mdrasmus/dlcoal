@@ -2,9 +2,13 @@
 // c/c++ includes
 #include <math.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include "common.h"
-//#include "Tree.h"
+#include "itree.h"
+#include "spidir/birthdeath.h"
+#include "duploss.h"
+
 
 using namespace spidir;
 
@@ -12,50 +16,6 @@ namespace dlcoal
 {
 
 extern "C" {
-
-//=============================================================================
-// primitive tree format conversion functions
-
-struct intnode
-{
-    int parent;
-    int child[2];
-};
-
-// creates a int tree from a parent tree
-// Note: assumes binary tree
-intnode *make_itree(int nnodes, int *ptree)
-{
-    intnode *itree = new intnode [nnodes];
-    
-    // initialize
-    for (int i=0; i<nnodes; i++) {
-        itree[i].parent = ptree[i];
-        itree[i].child[0] = -1;
-        itree[i].child[1] = -1;
-    }
-    
-    // populate
-    for (int i=0; i<nnodes; i++) {
-        int parent = ptree[i];
-        
-        if (parent != -1) {
-            if (itree[parent].child[0] == -1)
-                itree[parent].child[0] = i;
-            else
-                itree[parent].child[1] = i;
-        }
-    }
-
-    return itree;
-}
-
-
-void free_itree(intnode *itree)
-{
-    delete [] itree;
-}
-
 
 
 class LineageCounts
@@ -519,115 +479,8 @@ double prob_locus_coal_recon_topology(int *ptree, int nnodes, int *recon,
 }
 
 
-    /*
-def prob_locus_coal_recon_topology(tree, recon, locus_tree, n, daughters):
-    """
-    Returns the log probability of a reconciled gene tree ('tree', 'recon')
-    from the coalescent model given a locus tree 'locus_tree',
-    population sizes 'n', and daughters set 'daughters'
-    """
-
-    # initialize popsizes, lineage counts, and divergence times
-    popsizes = coal.init_popsizes(locus_tree, n)
-    lineages = coal.count_lineages_per_branch(tree, recon, locus_tree)
-    locus_times = treelib.get_tree_timestamps(locus_tree)
-
-
-    # calc log probability
-    lnp = coal.prob_multicoal_recon_topology(
-        tree, recon, locus_tree, popsizes, lineages=lineages)
-    
-
-    def walk(node, gene_counts, leaves):
-        if node.is_leaf():
-            gene_counts[node.name] = lineages[node][0]
-            leaves.add(node)
-        else:
-            for child in node.children:
-                if child in daughters:
-                    gene_counts[child.name] = 1
-                    leaves.add(child)
-                else:
-                    walk(child, gene_counts, leaves)
-
-    for daughter in daughters:
-        # determine leaves of the coal subtree
-        gene_counts = {}
-        leaves = set()
-        walk(daughter, gene_counts, leaves)
-
-        p = coal.cdf_mrca_bounded_multicoal(
-            gene_counts, locus_times[daughter.parent], locus_tree, popsizes,
-            sroot=daughter, sleaves=leaves, stimes=locus_times)
-
-        if p == -util.INF:
-            return -util.INF
-
-        lnp -= p
-    
-    return lnp
-
-
-
-    */
-
 //=============================================================================
-// events
-enum {
-    EVENT_GENE = 0,
-    EVENT_SPEC = 1,
-    EVENT_DUP = 2
-};
-
-
-//  Probability density for for next birth at time 't' given
-//  'n'=1 lineages starting at time 0, evolving until time 'T' with a
-//  'birth' and 'death' rates for a reconstructed process.
-double birthWaitTime1(float t, float T, float birth, float death,
-		    float denom)
-{
-    const double r = birth - death;
-
-    return r * exp(-r*t) / denom;
-}
-
-//  Probability density for for next birth at time 't' given
-//  'n'=1 lineages starting at time 0, evolving until time 'T' with a
-//  'birth' and 'death' rates for a reconstructed process.
-double birthWaitTimeDenom1(float T, float birth, float death)
-{
-    const double r = birth - death;
-    const double a = death / birth;
-
-    return 1.0 - a * exp(-r * T);
-}
-
-
-// Sample the next birth event from a reconstructed birthdeath process.
-// Let there be 'n'=1 lineages at time 0 that evolve until time 'T' with
-// 'birth' and 'death' rates.
-// Conditioned that a birth will occur
-double sampleBirthWaitTime1(float T, float birth, float death)
-{
-    
-    // TODO: could make this much more efficient (use straight line instead of
-    // flat line).
-    
-    // uses rejection sampling
-    double denom = birthWaitTimeDenom1(T, birth, death);
-    double start_y = birthWaitTime1(0, T, birth, death, denom);
-    double end_y = birthWaitTime1(T, T, birth, death, denom);
-    double M = max(start_y, end_y);
-    
-    while (true) {
-        double t = frand(T);
-        double f = birthWaitTime1(t, T, birth, death, denom);
-
-        if (frand() <= f / M)
-            return t;
-    }
-}
-
+// sampling
 
 
 // Sample duplication times for only a subtree

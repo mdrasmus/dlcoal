@@ -38,7 +38,7 @@ endif
 # DLCoal files
 
 # package
-PKG_VERSION=0.9
+PKG_VERSION=0.5
 PKG_NAME=dlcoal
 PKG=dist/$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_DIR=dist/$(PKG_NAME)-$(PKG_VERSION)
@@ -52,14 +52,22 @@ BINARIES = $(SCRIPTS)
 
 DLCOAL_SRC = \
     src/coal.cpp \
-    src/Tree.cpp \
-    src/common.cpp
+    src/duploss.cpp \
+    src/itree.cpp \
+    src/spidir/birthdeath.cpp \
+    src/spidir/common.cpp \
+    src/spidir/logging.cpp \
+    src/spidir/parsing.cpp \
+    src/spidir/phylogeny.cpp \
+    src/spidir/Tree.cpp \
+    src/spidir/top_prior.cpp \
 
 
 
 DLCOAL_OBJS = $(DLCOAL_SRC:.cpp=.o)
 
-LIBS = `gsl-config --libs`
+LIBS =
+# `gsl-config --libs`
 #-lgsl -lgslcblas -lm
 
 

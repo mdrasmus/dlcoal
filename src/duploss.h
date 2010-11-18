@@ -5,6 +5,15 @@ namespace dlcoal {
 
 extern "C" {
 
+
+// locus tree events
+enum {
+    EVENT_GENE = 0,
+    EVENT_SPEC = 1,
+    EVENT_DUP = 2
+};
+
+
 }
 
 } // namespace dlcoal

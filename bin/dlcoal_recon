@@ -59,9 +59,9 @@ if len(args) == 0:
     o.print_help()
     sys.exit(1)
 
-
-random.seed(conf.seed)
-# TODO: see C too
+if conf.seed is not None:
+    random.seed(conf.seed)
+# TODO: seed C too
 
 
 #=============================================================================

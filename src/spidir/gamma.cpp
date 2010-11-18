@@ -18,58 +18,16 @@
 // gsl
 #include <gsl/gsl_sf.h>
 #include <gsl/gsl_randist.h>
-#define GSL_INCLUDED
-#ifndef __GSL_SF_H__
-#undef GSL_INCLUDED
-#endif
 
 
 // spidir headers
 #include "common.h"
+#include "gamma.h"
 
 namespace spidir {
 
 
-//=============================================================================
-// Math
-
-int choose(int n, int k)
-{       
-    return int(fchoose(n, k) + .5);
-}
-
-
-double fchoose(int n, int k)
-{   
-    if (n < 0 || k < 0 || k > n)
-        return 0;
-    
-    // optimization for speed
-    if (k > n/2)
-        k = n - k;
-    
-    double t = 1.0;
-    double m = n;
-    for (double i=1; i<=k; i++)
-        t *= (m - i + 1) / i;
-    return t;
-}
-
-
 extern "C" {
-
-// probability density distribution of the Poisson
-float poisson(int x, float lambda)
-{
-    if (x < 0 || lambda <= 0)
-        return 0.0;
-    
-    float a = 0.0;
-    for (float i=1.0; i<x+1; i+=1.0)
-        a += log(lambda / i);
-    return exp(-lambda + a);
-}
-
 
 /* natural log of the gamma function
    gammln as implemented in the
@@ -110,8 +68,6 @@ double gamm(double x)
     
     return ret * sqrt(2*M_PI)/x * pow(x + 5.5, x+.5) * exp(-x-5.5);
 }
-
-
 
 
 // natural log of the gamma distribution PDF
@@ -159,9 +115,6 @@ double invgammaDerivB(double x, double a, double b)
     return gammaDerivB(1/x, a, b) / x / x;
 }
 
-
-
-#ifdef GSL_INCLUDED
 
 double invgammaDerivG(double x, double d)
 {
@@ -284,8 +237,6 @@ double gammaDerivV2(double x, double v)
     */
 }
 
-#endif // GSL_INCLUDED
-
 
 // PDF of a sum of n gamma variables
 double gammaSumPdf(double y, int n, float *alpha, float *beta, 
@@ -352,7 +303,10 @@ double gammaSumPdf(double y, int n, float *alpha, float *beta,
 }
 
 
-#ifdef GSL_INCLUDED
+
+
+/* =========================================================================
+// UNNEEDED
 
 double negbinomPdf(int k, double r, double p)
 {
@@ -370,8 +324,6 @@ double negbinomDerivR(int k, double r, double p)
     return exp(A) * B;
 }
 
-#endif // GSL_INCLUDED
-
 
 // Derivative of Negative Binomial distribution with respect to p
 double negbinomDerivP(int k, double r, double p)
@@ -383,182 +335,9 @@ double negbinomDerivP(int k, double r, double p)
     return exp(A) * B;
 }
 
-
-// Normal distribution.
-//
-// mu is the mean, and sigma is the standard deviation.
-//
-float normalvariate(float mu, float sigma)
-{
-    // Uses Kinderman and Monahan method. Reference: Kinderman,
-    // A.J. and Monahan, J.F., "Computer generation of random
-    // variables using the ratio of uniform deviates", ACM Trans
-    // Math Software, 3, (1977), pp257-260.
-
-    const static float NV_MAGICCONST = 4 * exp(-0.5)/sqrt(2.0);
-    float u1, u2, z, zz;
-
-    do {
-        u1 = frand();
-        u2 = 1.0 - frand();
-        z = NV_MAGICCONST*(u1-0.5)/u2;
-        zz = z*z/4.0;
-    } while (zz > -log(u2));
-    
-    return mu + z*sigma;
-}
-
-
-float gammavariate(float alpha, float beta)
-{
-    const static float LOG4 = 1.3862943611198906;
-    const static float SG_MAGICCONST = 1.0 + log(4.5);
-    
-    assert(alpha > 0.0 && beta > 0.0);
-    
-    // convert beta
-    beta = 1.0 / beta;
-    
-    if (alpha > 1.0) {
-        // Uses R.C.H. Cheng, "The generation of Gamma
-        // variables with non-integral shape parameters",
-        // Applied Statistics, (1977), 26, No. 1, p71-74
-
-        float ainv = sqrt(2.0 * alpha - 1.0);
-        float bbb = alpha - LOG4;
-        float ccc = alpha + ainv;
-
-        while (1) {
-            float u1 = frand();
-            if (u1 < 1e-7 || u1 > .9999999)
-                continue;
-            float u2 = 1.0 - frand();
-            float v = log(u1 / (1.0-u1)) / ainv;
-            float x = alpha * exp(v);
-            float z = u1*u1*u2;
-            float r = bbb+ccc*v-x;
-            if (r + SG_MAGICCONST - 4.5*z >= 0.0 || r >= log(z))
-                return x * beta;
-        }
-        
-    } else if (alpha == 1.0) {
-        // expovariate(1)
-        float u = 0;
-        while (u <= 1e-7)
-            u = frand();
-        return -log(u) * beta;
-        
-    } else { 
-        // alpha in (0, 1)
-        // Uses ALGORITHM GS of Statistical Computing - Kennedy & Gentle
-        float x;
-
-        while (1) {
-            float u = frand();
-            float b = (M_E + alpha)/M_E;
-            float p = b*u;
-            if (p <= 1.0)
-                x = pow(p, (1.0/alpha));
-            else
-                x = -log((b-p)/alpha);
-            float u1 = frand();
-            if (p > 1.0)
-                if (u1 <= pow(x, (alpha - 1.0)))
-                    break;
-                else if (u1 <= exp(-x))
-                    break;
-        }
-        return x * beta;
-    }
-}
-
-
-
+*/
 
 } // extern "C"
-
-// Invert a permutation
-void invertPerm(int *perm, int *inv, int size)
-{
-    for (int i=0; i<size; i++)
-        inv[perm[i]] = i;
-}
-
-
-
-
-//=============================================================================
-// input/output
-
-void printIntArray(int *array, int size)
-{
-    for (int i=0; i<size; i++)
-        printf("%d ", array[i]);
-    printf("\n");
-}
-
-void printFloatArray(float *array, int size)
-{
-    for (int i=0; i<size; i++)
-        printf("%f ", array[i]);
-    printf("\n");
-}
-
-
-bool inChars(char c, const char *chars)
-{
-   if (!chars)
-      return false;
-   for (;*chars; chars++)
-      if (c == *chars) return true;
-   return false;
-}
-
-
-bool chomp(char *str)
-{
-   int len = strlen(str);
-   if (str[len-1] == '\n') {
-      str[len-1] = '\0';
-      return true;
-   } else
-      return false;
-}
-
-
-vector<string> split(const char *str, const char *delim, bool multiDelim)
-{
-    vector<string> tokens;   
-    int i=0, j=0;
-   
-    while (str[i]) {
-        // walk to end of next token
-        for (; str[j] && !inChars(str[j], delim); j++);
-        
-        if (i == j)
-            break;
-
-        // save token
-        tokens.push_back(string(&str[i], j-i));
-        
-        if (!str[j])
-            break;
-        j++;
-        i = j;
-    }
-    
-    return tokens;
-}
-
-
-string trim(const char *word)
-{
-    char buf[101];
-    if (sscanf(word, "%100s", buf) == 1)
-        return string(buf);
-    else
-        return string("");
-}
 
 
 

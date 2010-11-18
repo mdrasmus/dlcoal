@@ -2,8 +2,10 @@
 # Makefile for development
 #
 
+
 PY_SRC_PATH=$(HOME)/projects/rasmus/python
 SPIMAP_SRC_PATH=$(HOME)/projects/spimap/python/
+SPIMAP_CPP_PATH=$(HOME)/projects/spimap/src
 
 RASMUS_SRC_FILES = __init__ \
                    linked_list \
@@ -31,8 +33,10 @@ SPIMAP_SRC_FILES = __init__ \
                    ctypes_export \
                    topology_prior
 
+
+
 # copy subset of python modules for packaging with spidir
-includepy:
+includedep:
 	mkdir -p dlcoal/deps/rasmus
 	touch dlcoal/deps/__init__.py
 	for mod in $(RASMUS_SRC_FILES); do \
@@ -48,3 +52,7 @@ includepy:
 	for mod in $(SPIMAP_SRC_FILES); do \
 		cp $(SPIMAP_SRC_PATH)/spidir/$${mod}.py dlcoal/deps/spidir/; \
 	done
+
+	mkdir -p src/spidir
+	cp $(SPIMAP_CPP_PATH)/*{.cpp,.h}  src/spidir
+	

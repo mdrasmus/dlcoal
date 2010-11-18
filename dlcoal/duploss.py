@@ -5,6 +5,59 @@ from rasmus import treelib
 
 from compbio import phylo, birthdeath
 
+import dlcoal
+
+
+import dlcoal
+from dlcoal.ctypes_export import *
+
+#=============================================================================
+# export c functions
+
+ex = Exporter(globals())
+export = ex.export
+
+
+if dlcoal.dlcoalc:
+
+    export(dlcoal.dlcoalc, "calcDoomTable", c_int,
+           [c_void_p, "tree", c_float, "birth", c_float, "death",
+            c_int, "maxdoom", c_double_p, "doomtable"])
+    
+    export(dlcoal.dlcoalc, "birthDeathTreePriorFull", c_double,
+           [c_void_p, "tree", c_void_p, "stree",
+            c_int_p, "recon", c_int_p, "events",
+            c_float, "birth", c_float, "death",
+            c_double_p, "doomtable", c_int, "maxdoom"])
+
+
+def prob_dup_loss(tree, stree, recon, duprate, lossrate,
+                  maxdoom=20, events=None):
+    """Returns the topology prior of a gene tree"""
+
+
+    if events is None:
+        events = phylo.label_events(tree, recon)
+
+    ptree, nodes, nodelookup = dlcoal.make_ptree(tree)
+    pstree, snodes, snodelookup = dlcoal.make_ptree(stree)
+
+    ctree = dlcoal.tree2ctree(tree)
+    cstree = dlcoal.tree2ctree(stree)
+    recon2 = dlcoal.make_recon_array(tree, recon, nodes, snodelookup)
+    events2 = dlcoal.make_events_array(nodes, events)
+
+    doomtable = c_list(c_double, [0] * len(stree.nodes))
+    dlcoal.dlcoalc.calcDoomTable(cstree, duprate, lossrate, maxdoom, doomtable)
+    
+    p = dlcoal.dlcoalc.birthDeathTreePriorFull(ctree, cstree,
+                                c_list(c_int, recon2), 
+                                c_list(c_int, events2),
+                                duprate, lossrate, doomtable, maxdoom)
+    dlcoal.dlcoalc.deleteTree(ctree)
+    dlcoal.dlcoalc.deleteTree(cstree)
+
+    return p
 
 
 def sample_dup_times(tree, stree, recon, birth, death,

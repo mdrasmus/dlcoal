@@ -1,0 +1,69 @@
+#ifndef SPIDIR_LOGGING_H
+#define SPIDIR_LOGGING_H
+
+/*=============================================================================
+
+    SPIDIR - SPecies Informed DIstanced-based Reconstruction
+    
+    Matt Rasmussen
+    Wed Jun 13 22:09:24 EDT 2007
+
+
+=============================================================================*/
+
+// c/c++ includes
+#include <sys/time.h>
+
+namespace spidir {
+
+
+// logging
+enum {
+    LOG_QUIET=0,
+    LOG_LOW=1,
+    LOG_MEDIUM=2,
+    LOG_HIGH=3
+};
+
+void printError(const char *fmt, ...);
+void printLog(int level, const char *fmt, ...);
+bool openLogFile(const char *filename);
+void openLogFile(FILE *stream);
+void closeLogFile();
+FILE *getLogFile();
+void setLogLevel(int level);
+bool isLogLevel(int level);
+
+
+// timing
+class Timer
+{
+public:
+    Timer(bool begin=true)
+    {
+        if (begin)
+            start();
+    }
+
+    void start()
+    {
+        gettimeofday(&start_time, NULL);
+    }
+
+    float time()
+    {
+        timeval result, stop;
+        gettimeofday(&stop, NULL);
+        timersub(&stop, &start_time, &result);
+
+        return result.tv_sec + result.tv_usec/1000000.0;
+    }
+
+    timeval start_time;
+};
+
+
+
+} // namespace spidir
+
+#endif // SPIDIR_COMMON_H

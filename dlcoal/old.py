@@ -1198,5 +1198,563 @@ def read_dlcoal_recon2(filename, stree,
         filenames.get("daughters", filename + exts["daughters"])))
 
     return coal_tree, extra
+
+
     
 '''
+
+
+#=============================================================================
+# OLD
+
+
+def prob_dlcoal_recon_topology_old(coal_tree, coal_recon,
+                                   locus_tree, locus_recon, locus_events,
+                                   daughters,
+                                   stree, n, duprate, lossrate,
+                                   pretime=None, premean=None,
+                                   maxdoom=20, nsamples=100,
+                                   add_spec=True):
+    """
+    Probability of a reconcile gene tree in the DLCoal model.
+
+    coal_tree    -- coalescent tree
+    coal_recon   -- reconciliation of coalescent tree to locus tree
+    locus_tree   -- locus tree (has dup-loss)
+    locus_recon  -- reconciliation of locus tree to species tree
+    locus_events -- events dict for locus tree
+    stree        -- species tree
+    n            -- population sizes in species tree
+    duprate      -- duplication rate
+    lossrate     -- loss rate
+
+    You must also specify one of the following
+    pretime      -- starting time before species tree
+    premean      -- mean starting time before species tree
+
+    Note: locus tree must have implied speciation nodes present
+    """
+    
+    dups = phylo.count_dup(locus_tree, locus_events)
+    
+    # ensure implicit speciations are present
+    if add_spec:
+        phylo.add_implied_spec_nodes(locus_tree, stree,
+                                     locus_recon, locus_events)
+    
+    # init popsizes for locus tree
+    stree_popsizes = coal.init_popsizes(stree, n)
+    popsizes = {}
+    for node in locus_tree:
+        popsizes[node.name] = stree_popsizes[locus_recon[node].name]
+
+
+    # duploss probability
+    dl_prob = spidir.calc_birth_death_prior(locus_tree, stree, locus_recon,
+                                            duprate, lossrate,
+                                            maxdoom=maxdoom)
+    
+    # daughters probability
+    d_prob = dups * log(.5)
+
+
+    # integrate over duplication times using sampling
+    prob = 0.0
+    for i in xrange(nsamples):
+        # sample duplication times
+
+        locus_times = duploss.sample_dup_times(
+            locus_tree, stree, locus_recon, duprate, lossrate, pretime,
+            premean,
+            events=locus_events)
+        assert len(locus_times) == len(locus_tree.nodes), (
+            len(locus_times), len(locus_tree.nodes))
+        treelib.set_dists_from_timestamps(locus_tree, locus_times)
+
+        # coal topology probability
+        coal_prob = prob_multicoal_recon_topology_old(
+            coal_tree, coal_recon, locus_tree, popsizes, daughters)
+        
+        prob += exp(coal_prob)
+
+
+    if add_spec:
+        removed = treelib.remove_single_children(locus_tree)
+        for r in removed:
+            del locus_recon[r]
+            del locus_events[r]
+    
+    return dl_prob + d_prob + util.safelog(prob / nsamples)
+
+
+def prob_multicoal_recon_topology_old(tree, recon, locus_tree, n, daughters):
+    """
+    Returns the log probability of a reconciled gene tree ('tree', 'recon')
+    from the coalescent model given a locus_tree 'locus_tree',
+    population sizes 'n', and daughters set 'daughters'
+    """
+
+    # init population sizes and lineage counts
+    popsizes = coal.init_popsizes(locus_tree, n)
+    lineages = coal.count_lineages_per_branch(tree, recon, locus_tree)
+
+    # log probability
+    lnp = 0.0
+    
+    # iterate through species tree branches
+    for snode in locus_tree.postorder():
+        if snode.parent:
+            # non root branch
+            a, b = lineages[snode]
+
+            if snode not in daughters:                
+                lnp += util.safelog(coal.prob_coal_counts(a, b, snode.dist,
+                                          popsizes[snode.name]))
+            else:
+                assert b == 1
+                # the probability of this subtree 1 since complete
+                # coalescence is required.
+
+            lnp -= log(coal.num_labeled_histories(a, b))
+        else:
+            # normal coalesent
+            a, b = lineages[snode]
+            assert b == 1
+            lnp -= log(coal.num_labeled_histories(a, b))
+
+    
+    # correct for topologies H(T)
+    # find connected subtrees that are in the same species branch
+    subtrees = []
+    subtree_root = {}
+    for node in tree.preorder():
+        if node.parent and recon[node] == recon[node.parent]:
+            subtree_root[node] = subtree_root[node.parent]
+        else:
+            subtrees.append(node)
+            subtree_root[node] = node
+
+    # find leaves through recursion
+    def walk(node, subtree, leaves):
+        if node.is_leaf():
+            leaves.append(node)
+        elif (subtree_root[node.children[0]] != subtree and
+              subtree_root[node.children[1]] != subtree):
+            leaves.append(node)
+        else:
+            for child in node.children:
+                walk(child, subtree, leaves)
+
+    # apply correction for each subtree
+    for subtree in subtrees:
+        leaves = []
+        for child in subtree.children:
+            walk(subtree, subtree, leaves)
+        if len(leaves) > 2:
+            lnp += log(birthdeath.num_topology_histories(subtree, leaves))
+
+    return lnp
+
+
+def sample_locus_coal_tree2(stree, n, leaf_counts=None,
+                           daughters=set(),
+                           namefunc=None):
+    """
+    Returns a gene tree from a locus coalescence process
+    n -- population size (int or dict)
+         If n is a dict it must map from species name to population size
+    """
+    
+    # initialize vector for how many genes per extant species
+    if leaf_counts is None:
+        leaf_counts = dict((l, 1) for l in stree.leaf_names())
+
+    # initialize function for generating new gene names
+    if namefunc is None:
+        spcounts = dict((l, 1) for l in stree.leaf_names())
+        def namefunc(sp):
+            name = sp + "_" + str(spcounts[sp])
+            spcounts[sp] += 1
+            return name
+
+    stimes = treelib.get_tree_timestamps(stree)
+
+    # initialize population sizes
+    popsizes = coal.init_popsizes(stree, n)
+
+    # init gene counts
+    counts = dict((n.name, 0) for n in stree)
+    counts.update(leaf_counts)
+
+    # init reconciliation, events
+    recon = {}
+    subtrees = {}
+
+    print "locus"
+    treelib.draw_tree_names(stree, maxlen=8)
+
+    
+    def walk(node, leaves, stubs):
+        if node.is_leaf():
+            leaves.append(node)
+        else:
+            for child in node.children:
+                if child in daughters:
+                    leaves.append(child)
+                    stubs.append(child)
+                else:
+                    walk(child, leaves, stubs)
+
+    for snode in chain(daughters, [stree.root]):
+        # determine leaves of the coal subtree
+        leaves = []
+        sstubs = []
+        walk(snode, leaves, sstubs)
+
+        leaf_counts2 = {}
+        for leaf in leaves:
+            if leaf.name in leaf_counts:
+                # leaf species node
+                leaf_counts2[leaf.name] = leaf_counts[leaf.name]
+            else:
+                # daughter node
+                leaf_counts2[leaf.name] = 1
+
+        if snode.parent:
+            subtree, subrecon = coal.sample_bounded_multicoal_tree(
+                stree, popsizes, stimes[snode.parent],
+                leaf_counts=leaf_counts2,
+                namefunc=namefunc, sleaves=leaves,
+                sroot=snode)
+            
+        else:
+            subtree, subrecon = coal.sample_multicoal_tree(
+                stree, popsizes, leaf_counts=leaf_counts2, sroot=stree.root,
+                sleaves=leaves,
+                namefunc=namefunc)
+
+        # determine stubs
+        stubs = []
+        for node in subtree:
+            if node.is_leaf() and subrecon[node] in sstubs:
+                stubs.append((node, subrecon[node]))
+        subtrees[snode] = (subtree, stubs)
+        recon.update(subrecon)
+
+        # DEBUG
+        # give unique leaf names
+        #for leaf in subtree.leaves():
+        #    if isinstance(leaf.name, basestring):
+        #        print "l", leaf.name
+        #        #tree.rename(leaf.name, namefunc(recon[leaf].name))
+
+        #nodes = list(subtree.preorder())
+        #print "subtree", [x.name for x in nodes]
+        #print "stubs", stubs
+        #treelib.draw_tree_names(subtree, maxlen=8)
+
+
+
+    # stitch subtrees together
+    tree = treelib.Tree()
+
+    # add all nodes to total tree
+    visited = set()
+    for snode, (subtree, stubs) in subtrees.iteritems():
+        tree.merge_names(subtree)
+        #print "names", tree.nodes.keys()
+        #for name in subtree.nodes:
+        #    assert name not in visited, name
+        #    visited.add(name)
+
+    # stitch leaves of the subtree to children subtree lineages
+    for snode, (subtree, stubs) in subtrees.iteritems():
+        for leaf, snode in stubs:
+            child_subtree = subtrees[snode][0]
+            tree.add_child(leaf, child_subtree.root)
+
+    # set root
+    tree.root = subtrees[stree.root][0].root
+
+    # name leaves
+    #for leaf in tree.leaves():
+    #    tree.rename(leaf.name, namefunc(recon[leaf].name))
+
+
+    # DEBUG
+    try:
+        #nodes = list(tree.preorder())
+        #print util.print_dict(util.hist_dict(x.name for x in tree.postorder()))
+        #print util.print_dict(util.hist_dict(x.name for x in nodes))
+        #print sorted(util.hist_dict(x.name for x in nodes).items(),
+        #             key=lambda x: x[1], reverse=True)[0]
+
+        #print "root", tree.root.name
+        #treelib.draw_tree_names(tree, maxlen=8)
+        
+        treelib.assert_tree(tree)
+    except:
+        print set(tree.nodes.keys()) - set(x.name for x in tree.postorder())
+        print set(x.name for x in tree.postorder()) - set(tree.nodes.keys())
+        
+        raise
+    
+    return tree, recon
+
+
+
+def sample_locus_coal_tree_old(stree, n, leaf_counts=None,
+                               daughters=set(),
+                               namefunc=None):
+    """
+    Returns a gene tree from a locus coalescence process
+    n -- population size (int or dict)
+         If n is a dict it must map from species name to population size
+    """
+
+    # TODO: needs proper sampling from BMC
+
+    # initialize vector for how many genes per extant species
+    if leaf_counts is None:
+        leaf_counts = dict((l, 1) for l in stree.leaf_names())
+
+    # initialize function for generating new gene names
+    if namefunc is None:
+        spcounts = dict((l, 1) for l in stree.leaf_names())
+        def namefunc(sp):
+            name = sp + "_" + str(spcounts[sp])
+            spcounts[sp] += 1
+            return name
+
+    # initialize population sizes
+    popsizes = coal.init_popsizes(stree, n)
+
+    # init gene counts
+    counts = dict((n.name, 0) for n in stree)
+    counts.update(leaf_counts)
+
+    # init reconciliation, events
+    recon = {}
+
+    subtrees = {}
+
+    # loop through species tree
+    for snode in stree.postorder():        
+        # simulate population for one branch
+        k = counts[snode.name]
+        if snode in daughters:
+            # daughter branch, use bounded coalescent
+            subtree = coal.sample_bounded_coal_tree(
+                k, popsizes[snode.name], snode.dist, capped=True)
+            lineages = set(subtree.root)
+        elif snode.parent:            
+            # non basal branch
+            subtree, lineages = coal.sample_censored_coal_tree(
+                k, popsizes[snode.name], snode.dist, capped=True)
+        else:
+            # basal branch
+            subtree = coal.sample_coal_tree(k, popsizes[snode.name])
+            lineages = set(subtree.root)
+        subtrees[snode] = (subtree, lineages)
+        if snode.parent:
+            counts[snode.parent.name] += len(lineages)
+        for node in subtree:
+            recon[node] = snode
+
+
+    # stitch subtrees together
+    tree = treelib.Tree()
+
+    # add all nodes to total tree
+    for snode, (subtree, lineages) in subtrees.iteritems():
+        tree.merge_names(subtree)
+        if snode.parent:
+            tree.remove(subtree.root)        
+            del recon[subtree.root]
+    
+    for snode in stree:
+        if not snode.is_leaf():
+            subtree, lineages = subtrees[snode]
+
+            # get lineages from child subtrees
+            lineages2 = chain(*[subtrees[child][1]
+                                for child in snode.children])
+
+            # ensure leaves are randomly attached
+            leaves = subtree.leaves()
+            random.shuffle(leaves)
+
+            # stitch leaves of the subtree to children subtree lineages
+            for leaf, lineage in izip(leaves, lineages2):
+                tree.add_child(leaf, lineage)
+
+
+    # set root
+    tree.root = subtrees[stree.root][0].root    
+
+    # name leaves
+    for leaf in tree.leaves():
+        tree.rename(leaf.name, namefunc(recon[leaf].name))
+        
+    return tree, recon
+
+
+
+'''
+def dlcoal_recon_old(tree, stree, gene2species,
+                 n, duprate, lossrate,
+                 pretime=None, premean=None,
+                 nsearch=1000,
+                 maxdoom=20, nsamples=100,
+                 search=phylo.TreeSearchNni):
+    """
+    Perform reconciliation using the DLCoal model
+
+    Returns (maxp, maxrecon) where 'maxp' is the probability of the
+    MAP reconciliation 'maxrecon' which further defined as
+
+    maxrecon = {'coal_recon': coal_recon,
+                'locus_tree': locus_tree,
+                'locus_recon': locus_recon,
+                'locus_events': locus_events,
+                'daughters': daughters}
+    
+    """
+
+    # init coal tree
+    coal_tree = tree
+
+    # init locus tree as congruent to coal tree
+    # equivalent to assuming no ILS
+    locus_tree = coal_tree.copy()
+
+    maxp = - util.INF
+    maxrecon = None
+
+    # init search
+    locus_search = search(locus_tree)
+
+    for i in xrange(nsearch):       
+        # TODO: propose other reconciliations beside LCA
+        locus_tree2 = locus_tree.copy()
+        phylo.recon_root(locus_tree2, stree, gene2species, newCopy=False)
+        locus_recon = phylo.reconcile(locus_tree2, stree, gene2species)
+        locus_events = phylo.label_events(locus_tree2, locus_recon)
+
+        # propose daughters (TODO)
+        daughters = set()
+
+        # propose coal recon (TODO: propose others beside LCA)
+        coal_recon = phylo.reconcile(coal_tree, locus_tree2, lambda x: x)
+
+        # compute recon probability
+        phylo.add_implied_spec_nodes(locus_tree2, stree,
+                                     locus_recon, locus_events)
+        p = prob_dlcoal_recon_topology(coal_tree, coal_recon,
+                                       locus_tree2, locus_recon, locus_events,
+                                       daughters,
+                                       stree, n, duprate, lossrate,
+                                       pretime, premean,
+                                       maxdoom=maxdoom, nsamples=nsamples,
+                                       add_spec=False)
+        treelib.remove_single_children(locus_tree2)
+
+        if p > maxp:
+            maxp = p
+            maxrecon = {"coal_recon": coal_recon,
+                        "locus_tree": locus_tree2,
+                        "locus_recon": locus_recon,
+                        "locus_events": locus_events,
+                        "daughters": daughters}
+            locus_tree = locus_tree2.copy()
+            locus_search.set_tree(locus_tree)
+        else:
+            locus_search.revert()
+
+        # perform local rearrangement to locus tree
+        locus_search.propose()
+
+
+
+
+    return maxp, maxrecon
+
+
+
+
+
+
+def write_dlcoal_recon2(filename, coal_tree, extra,
+                       exts={"coal_tree": ".coal.tree",
+                             "coal_recon": ".coal.recon",
+                             "locus_tree": ".locus.tree",
+                             "locus_recon": ".locus.recon",
+                             "locus_events": ".locus.events",
+                             "daughters": ".daughters"
+                             },
+                       filenames={}):
+    """Writes a reconciled gene tree to files"""
+
+    # coal
+    coal_tree.write(filenames.get("coal_tree", filename + exts["coal_tree"]),
+                    rootData=True)
+    phylo.write_recon(
+        filenames.get("coal_recon", filename + exts["coal_recon"]),
+        extra["coal_recon"])
+
+    # locus
+    extra["locus_tree"].write(
+        filenames.get("locus_tree", filename + exts["locus_tree"]),
+        rootData=True)
+    phylo.write_recon(
+        filenames.get("locus_recon", filename + exts["locus_recon"]),
+        extra["locus_recon"])
+    phylo.write_events(
+        filenames.get("locus_events", filename + exts["locus_events"]),
+        extra["locus_events"])
+
+    util.write_list(
+        filenames.get("daughters", filename + exts["daughters"]),
+        [x.name for x in extra["daughters"]])
+
+
+
+def read_dlcoal_recon2(filename, stree,
+                      exts={"coal_tree": ".coal.tree",
+                            "coal_recon": ".coal.recon",
+                            "locus_tree": ".locus.tree",
+                            "locus_recon": ".locus.recon",
+                            "locus_events": ".locus.events",
+                            "daughters": ".daughters"
+                            },
+                      filenames={}):
+    """Reads a reconciled gene tree from files"""
+
+    extra = {}
+
+    # trees
+    coal_tree = treelib.read_tree(
+        filenames.get("coal_tree", filename + exts["coal_tree"]))
+    extra["locus_tree"] = treelib.read_tree(
+        filenames.get("locus_tree", filename + exts["locus_tree"]))
+
+    # recons
+    extra["coal_recon"] = phylo.read_recon(
+        filenames.get("coal_recon", filename + exts["coal_recon"]),
+        coal_tree, extra["locus_tree"])
+    extra["locus_recon"] = phylo.read_recon(
+        filenames.get("locus_recon", filename + exts["locus_recon"]),
+        extra["locus_tree"], stree)
+    extra["locus_events"] = phylo.read_events(
+        filenames.get("locus_events", filename + exts["locus_events"]),
+        extra["locus_tree"])
+
+
+    extra["daughters"] = set(
+        extra["locus_tree"].nodes[x] for x in util.read_strings(
+        filenames.get("daughters", filename + exts["daughters"])))
+
+    return coal_tree, extra
+    
+'''
+

@@ -88,7 +88,7 @@ class DLCoalRecon (object):
         proposal = self.proposer.init_proposal()
         self.maxrecon = proposal.copy()
         for i in xrange(nsearch):
-            if i%10 == 0:
+            if i % 10 == 0:
                 print "search", i
             p = self.eval_proposal(proposal)
             self.eval_search(p, proposal)

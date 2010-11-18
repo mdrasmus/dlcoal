@@ -5,6 +5,7 @@
 
 """
 
+import sys
 import os
 from ctypes import *
 
@@ -116,9 +117,11 @@ def load_library(path, lib):
         libdir = os.path.join(os.path.dirname(__file__), *path)
         return cdll.LoadLibrary(os.path.join(libdir, lib))
     except Exception, e:
-        # search for libspidir.so in library path
+        # search for lib in library path
         try:
             return cdll.LoadLibrary(lib)
-        except:
+        except Exception, e2:
+            print >>sys.stderr, e
+            print >>sys.stderr, e2
             return None
 

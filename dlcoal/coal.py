@@ -47,71 +47,15 @@ if dlcoal.dlcoalc:
             c_int, "nsamples", c_double, "pretime", c_double, "premean"])
 
 
-def make_ptree(tree):
-    """Make parent tree array from tree"""
-
-    nodes = []
-    nodelookup = {}
-    ptree = []
-    
-    def walk(node):
-        for child in node.children:
-            walk(child)
-        nodes.append(node)
-    walk(tree.root)
-
-    # ensure sort is stable
-    def leafsort(a, b):
-        if a.is_leaf():
-            if b.is_leaf():
-                return 0
-            else:
-                return -1
-        else:
-            if b.is_leaf():
-                return 1
-            else:
-                return 0
-    
-    # bring leaves to front
-    nodes.sort(cmp=leafsort)
-    nodelookup = {}
-    for i, n in enumerate(nodes):
-        nodelookup[n] = i
-    
-    for node in nodes:
-        if node == tree.root:
-            ptree.append(-1)
-        else:
-            ptree.append(nodelookup[node.parent])
-    
-    assert nodes[-1] == tree.root
-    
-    return ptree, nodes, nodelookup
-
-
-def make_recon_array(tree, recon, nodes, snodelookup):
-    """Make a reconciliation array from recon dict"""
-    recon2 = []
-    for node in nodes:
-        recon2.append(snodelookup[recon[node]])
-    return recon2
-
-def make_events_array(nodes, events):
-    """Make events array from events dict"""
-    mapping = {"gene": 0,
-               "spec": 1,
-               "dup": 2}
-    return [mapping[events[i]] for i in nodes]
 
 
 pmrt = compbio.coal.prob_multicoal_recon_topology
 def prob_multicoal_recon_topology(tree, recon, stree, n,
                                   lineages=None, top_stats=None):
 
-    ptree, nodes, nodelookup = make_ptree(tree)
-    pstree, snodes, snodelookup = make_ptree(stree)
-    recon2 = make_recon_array(tree, recon, nodes, snodelookup)
+    ptree, nodes, nodelookup = dlcoal.make_ptree(tree)
+    pstree, snodes, snodelookup = dlcoal.make_ptree(stree)
+    recon2 = dlcoal.make_recon_array(tree, recon, nodes, snodelookup)
 
     popsizes = compbio.coal.init_popsizes(stree, n)
     popsizes2 = [popsizes[snode.name] for snode in snodes]
@@ -130,9 +74,9 @@ compbio.coal.prob_multicoal_recon_topology = prob_multicoal_recon_topology
 
 def prob_locus_coal_recon_topology(tree, recon, locus_tree, n, daughters):
 
-    ptree, nodes, nodelookup = make_ptree(tree)
-    pltree, lnodes, lnodelookup = make_ptree(locus_tree)
-    recon2 = make_recon_array(tree, recon, nodes, lnodelookup)
+    ptree, nodes, nodelookup = dlcoal.make_ptree(tree)
+    pltree, lnodes, lnodelookup = dlcoal.make_ptree(locus_tree)
+    recon2 = dlcoal.make_recon_array(tree, recon, nodes, lnodelookup)
 
     popsizes = compbio.coal.init_popsizes(locus_tree, n)
     popsizes2 = [popsizes[lnode.name] for lnode in lnodes]
@@ -160,14 +104,17 @@ def prob_locus_coal_recon_topology_samples(
 
     if pretime is None:
         pretime = -1
-
-    ptree, nodes, nodelookup = make_ptree(coal_tree)
-    pltree, lnodes, lnodelookup = make_ptree(locus_tree)
-    pstree, snodes, snodelookup = make_ptree(stree)
     
-    crecon2 = make_recon_array(coal_tree, coal_recon, nodes, lnodelookup)
-    lrecon2 = make_recon_array(locus_tree, locus_recon, lnodes, snodelookup)
-    levents2 = make_events_array(lnodes, locus_events)
+
+    ptree, nodes, nodelookup = dlcoal.make_ptree(coal_tree)
+    pltree, lnodes, lnodelookup = dlcoal.make_ptree(locus_tree)
+    pstree, snodes, snodelookup = dlcoal.make_ptree(stree)
+    
+    crecon2 = dlcoal.make_recon_array(
+        coal_tree, coal_recon, nodes, lnodelookup)
+    lrecon2 = dlcoal.make_recon_array(
+        locus_tree, locus_recon, lnodes, snodelookup)
+    levents2 = dlcoal.make_events_array(lnodes, locus_events)
 
     locus_popsizes = compbio.coal.init_popsizes(locus_tree, locus_popsizes)
     popsizes2 = [locus_popsizes[lnode.name] for lnode in lnodes]

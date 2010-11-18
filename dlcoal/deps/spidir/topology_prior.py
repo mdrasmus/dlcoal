@@ -23,7 +23,7 @@ def calc_doom_table(tree, birth, death, maxdoom, nodelookup=None):
     doomtable = [0] * len(tree.nodes)
     
     def walk(node):
-        if node.isLeaf():
+        if node.is_leaf():
             doomtable[nodelookup[node]] = -util.INF
         else:
             for child in node.children:
@@ -164,6 +164,7 @@ def dup_loss_topology_prior(tree, stree, recon, birth, death, maxdoom,
 
 
 
+
 def sample_dup_times(tree, stree, recon, birth, death,
                      pretime=None, premean=None, events=None):
     """
@@ -180,7 +181,7 @@ def sample_dup_times(tree, stree, recon, birth, death,
 
     # get species tree timestamps
     stimes = treelib.get_tree_timestamps(stree)
-    treelib.check_timestamps(stree, stimes)
+    #treelib.check_timestamps(stree, stimes)
 
     # init timestamps for gene tree
     times = {}
@@ -254,8 +255,7 @@ def sample_dup_times_subtree(times, start_time, time_span, duproot,
         remain = time_span - (start_time - parent_time)
 
         while True:
-            t = birthdeath.sample_birth_wait_time(1, remain,
-                                                  birth, death)
+            t = birthdeath.sample_birth_wait_time(1, remain, birth, death)
             times[dup] = parent_time - t
             assert t >= 0.0
             
@@ -270,5 +270,8 @@ def sample_dup_times_subtree(times, start_time, time_span, duproot,
     walk(duproot)
 
     
+    
+
+
     
 
