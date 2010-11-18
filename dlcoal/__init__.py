@@ -16,17 +16,15 @@ from itertools import chain, izip
 import traceback
 from math import *
 
-
+# import dlcoal C lib
 from dlcoal.ctypes_export import *
-
-# import spidir C lib
 dlcoalc = load_library(["..", "lib"], "libdlcoal.so")
 
 
 # add pre-bundled dependencies to the python path,
 # if they are not available already
 try:
-    import rasmus, compbio, spidir
+    import rasmus, compbio
 except ImportError:
     from . import dep
     dep.load_deps()
@@ -37,9 +35,7 @@ except ImportError:
 from rasmus import stats, util, treelib
 
 # compbio libs
-from compbio import birthdeath
-from compbio import phylo
-
+from compbio import birthdeath, phylo
 
 # dlcoal libs
 from . import coal, duploss
@@ -232,6 +228,7 @@ def prob_tree_birth_death(tree, stree, recon, events, duprate, lossrate,
             print >>sys.stderr, "warning: using python code instead of native"
             globals()["dlcoal_python_fallback"] = 1
             # spidir libs
+            import spidir
             from spidir import topology_prior
             
         return topology_prior.dup_loss_topology_prior(
@@ -420,6 +417,26 @@ def sample_locus_coal_tree_reject(locus_tree, n, leaf_counts=None,
 
 
 
+## added 30 July 2010
+##  should mimic dlcoal_sims, but using the new simulator
+## TODO: fix this up when code is more integrated
+def dlcoal_sims2(outdir, nsims, stree, n, duprate, lossrate, freq=1.0,
+                freqdup=.05, freqloss=.05, forcetime=1e6, start=0, minsize=0,
+                **options):
+    
+    import sim_v2_2 # TODO: remove this when code is more integrated
+    
+    for i in xrange(start, nsims+start): # changed nsims to nsims+start
+        outfile = phylo.phylofile(outdir, str(i), "")
+        util.makedirs(os.path.dirname(outfile))
+        print "simulating", outfile
+ 
+        # sample a new tree from DLCoal model using new simulator
+        coal_tree, ex = sim_v2_2.sample_dlcoal_no_ifix(stree, n, freq, \
+                            duprate, lossrate, freqdup, freqloss, forcetime, \
+                            minsize=minsize, **options)
+        write_dlcoal_recon(outfile, coal_tree, ex)
+
 
 
 #=============================================================================
@@ -526,27 +543,6 @@ def read_log_all(filename):
     return map(eval, stream)
     
 
-
-## added 30 July 2010
-##  should mimic dlcoal_sims, but using the new simulator
-## TODO: fix this up when code is more integrated
-def dlcoal_sims2(outdir, nsims, stree, n, duprate, lossrate, freq=1.0,
-                freqdup=.05, freqloss=.05, forcetime=1e6, start=0, minsize=0,
-                **options):
-    
-    import sim_v2_2 # TODO: remove this when code is more integrated
-    
-    for i in xrange(start, nsims+start): # changed nsims to nsims+start
-        outfile = phylo.phylofile(outdir, str(i), "")
-        util.makedirs(os.path.dirname(outfile))
-        print "simulating", outfile
- 
-        # sample a new tree from DLCoal model using new simulator
-        coal_tree, ex = sim_v2_2.sample_dlcoal_no_ifix(stree, n, freq, \
-                            duprate, lossrate, freqdup, freqloss, forcetime, \
-                            minsize=minsize, **options)
-        write_dlcoal_recon(outfile, coal_tree, ex)
- 
 
 
 #=============================================================================

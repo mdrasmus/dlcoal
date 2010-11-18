@@ -38,7 +38,7 @@ endif
 # DLCoal files
 
 # package
-PKG_VERSION=0.5
+PKG_VERSION=0.9
 PKG_NAME=dlcoal
 PKG=dist/$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_DIR=dist/$(PKG_NAME)-$(PKG_VERSION)
