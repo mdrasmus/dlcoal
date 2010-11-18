@@ -20,16 +20,18 @@
 
 // spidir headers
 #include "common.h"
-#include "parsing.h"
+#include "ConfigParam.h"
 #include "logging.h"
-#include "phylogeny.h"
+#include "Matrix.h"
+#include "newick.h"
 #include "parsimony.h"
+#include "parsing.h"
+#include "phylogeny.h"
 #include "search.h"
 #include "seq_likelihood.h"
-#include "Matrix.h"
-#include "ConfigParam.h"
 #include "Sequences.h"
 #include "spidir.h"
+#include "treevis.h"
 
 
 #define VERSION_INFO  "\
@@ -298,7 +300,7 @@ bool bootstrap(Sequences *aln, string *genes, TreeSearch *search,
 				      aln2.nseqs, aln2.seqlen, aln2.seqs);
 
 	    boottree->setLeafNames(genes);
-	    boottree->writeNewick(bootfile, NULL, 0, true);
+	    writeNewickTree(bootfile, boottree, 0, true);
 	    fprintf(bootfile, "\n");
 	    fflush(bootfile);
 	    delete boottree;            
@@ -362,7 +364,7 @@ int main(int argc, char **argv)
     //============================================================
     // read species tree
     SpeciesTree stree;
-    if (!stree.readNewick(c.streefile.c_str())) {
+    if (!readNewickTree(c.streefile.c_str(), &stree)) {
         printError("error reading species tree '%s'", c.streefile.c_str());
         return 1;
     }
@@ -507,7 +509,7 @@ int main(int argc, char **argv)
     // load correct tree
     Tree correctTree;    
     if (c.correctFile != "") {
-        if (!correctTree.readNewick(c.correctFile.c_str())) {
+        if (!readNewickTree(c.correctFile.c_str(), &correctTree)) {
             printError("cannot read correct tree '%s'", c.correctFile.c_str());
             return 1;
         }
@@ -553,7 +555,7 @@ int main(int argc, char **argv)
     displayTree(toptree);
 
     toptree->setLeafNames(genes);
-    toptree->writeNewick(outtreeFilename.c_str());
+    writeNewickTree(outtreeFilename.c_str(), toptree);
     
     
     // log tree correctness

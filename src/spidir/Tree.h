@@ -7,7 +7,8 @@
 #include <stdlib.h>
 #include <string>
 
-#include "common.h"
+#include "ExtendArray.h"
+
 
 using namespace std;
 
@@ -226,29 +227,10 @@ public:
     
     // Returns a new copy of the tree
     Tree *copy();
-   
-    
-    // Reads a tree structure from an input stream 'infile'
-    // Returns true on success
-    bool readNewick(FILE *infile);
-    
-    // Reads a tree structure from a file 'filename'
-    // Returns true on success
-    bool readNewick(const char *filename);
-    
-    // Writes a tree structure to an output stream 'out'
-    void writeNewick(FILE *out=stdout, Node *node=NULL, int depth=0, bool oneline=false);
-    
-    // Writes a tree structure to a file 'filename'
-    bool writeNewick(const char *filename, bool oneline=false);
-    
+       
     // Returns whether the tree is self consistent
     bool assertTree();
-    
-protected:
-    // Reads a single node from an open file
-    Node *readNode(FILE *infile, Node *parent, int &depth);    
-    
+        
 public:    
     int nnodes;                 // number of nodes in tree
     Node *root;                 // root of the tree (NULL if no nodes)
@@ -284,25 +266,6 @@ void getTreePreOrder(Tree *tree, ExtendArray<Node*> *nodes, Node *node=NULL);
 
 
 //=============================================================================
-// visualization
-
-void displayTree(Tree *tree, FILE *outfile=stdout, 
-                 float xscale=20.0, int yscale=2);
-void displayTreeMatrix(Tree *tree, float xscale, int yscale, 
-                       char ***matrix, int *nrows, int *ncols);
-
-
-//=============================================================================
-// conversion functions
-
-// Creates a 'forward tree' from a 'parent tree'
-void makeFtree(int nnodes, int *ptree, int ***ftree);
-
-// Deallocates a 'forward tree'
-void freeFtree(int nnodes, int **ftree);
-
-
-//=============================================================================
 // Input/output
 
 void printFtree(int nnodes, int **ftree);
@@ -311,6 +274,14 @@ void printTree(Tree *tree, Node *node=NULL, int depth=0);
 
 // C exports
 extern "C" {
+
+
+// Creates a 'forward tree' from a 'parent tree'
+void makeFtree(int nnodes, int *ptree, int ***ftree);
+
+// Deallocates a 'forward tree'
+void freeFtree(int nnodes, int **ftree);
+
 
 // Creates a tree object from a 'parent tree' array
 void ptree2tree(int nnodes, int *ptree, Tree *tree);

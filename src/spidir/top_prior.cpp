@@ -2,10 +2,13 @@
 // c/c++ includes
 #include <math.h>
 
+
 // spidir includes
-#include "Tree.h"
-#include "phylogeny.h"
 #include "birthdeath.h"
+#include "common.h"
+#include "phylogeny.h"
+#include "Tree.h"
+#include "treevis.h"
 
 
 namespace spidir

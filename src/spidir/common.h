@@ -21,9 +21,6 @@
 #include <string.h>
 
 
-// spidir headers
-#include "ExtendArray.h"
-
 using namespace std;
 
 namespace spidir {
@@ -257,7 +254,7 @@ void invertPerm(int *perm, int *inv, int size);
 template <class T>
 void permute(T* array, int *perm, int size)
 {
-    ExtendArray<T> tmp(size);
+    T *tmp = new T [size];
     
     // transfer permutation to temp array
     for (int i=0; i<size; i++)
@@ -266,6 +263,8 @@ void permute(T* array, int *perm, int size)
     // copy permutation back to original array
     for (int i=0; i<size; i++)
         array[i] = tmp[i];
+
+    delete [] tmp;
 }
 
 template <class T>
@@ -312,9 +311,7 @@ int findval(T *array, int size, const T &val)
 template <class KeyType, class ValueType>
 struct RankSortCmp
 {
-    RankSortCmp(ValueType *values):
-        values(values)
-    {}
+    RankSortCmp(ValueType *values): values(values) {}
     
     bool operator()(KeyType i, KeyType j)
     { return values[i] < values[j]; }

@@ -56,8 +56,6 @@ DLCOAL_SRC = \
     src/itree.cpp \
     src/spidir/birthdeath.cpp \
     src/spidir/common.cpp \
-    src/spidir/logging.cpp \
-    src/spidir/parsing.cpp \
     src/spidir/phylogeny.cpp \
     src/spidir/Tree.cpp \
     src/spidir/top_prior.cpp \

@@ -4,15 +4,17 @@
 
 
 #include "common.h"
+#include "branch_prior.h"
 #include "logging.h"
 #include "Matrix.h"
-#include "phylogeny.h"
 #include "nj.h"
-#include "branch_prior.h"
-#include "top_prior.h"
+#include "newick.h"
 #include "parsimony.h"
+#include "phylogeny.h"
 #include "search.h"
 #include "seq_likelihood.h"
+#include "top_prior.h"
+#include "treevis.h"
 
 
 namespace spidir {
@@ -970,7 +972,7 @@ void printLogTree(int loglevel, Tree *tree)
 {
     if (isLogLevel(loglevel)) {
         printLog(loglevel, "tree: ");
-        tree->writeNewick(getLogFile(), NULL, 0, true);
+        writeNewickTree(getLogFile(), tree, 0, true);
         printLog(loglevel, "\n\n");
     }
 }

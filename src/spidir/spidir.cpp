@@ -1,4 +1,5 @@
 
+#include "common.h"
 #include "spidir.h"
 #include "logging.h"
 #include "phylogeny.h"

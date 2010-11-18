@@ -3,6 +3,7 @@
 #define SPIDIR_SEARCH_H
 
 #include "spidir.h"
+#include "newick.h"
 #include <set>
 
 
@@ -427,7 +428,7 @@ public:
 
     void operator()(Tree *tree)
     {
-        tree->writeNewick(output, NULL, 0, true);
+        writeNewickTree(output, tree, 0, true);
         fprintf(output, "\n");
     }
     
