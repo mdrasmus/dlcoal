@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-# DLCoal Reconciliation
+# DLCoal Simulation
 
+# python imports
 import sys
 from os.path import dirname
 import optparse
@@ -16,6 +17,7 @@ except ImportError:
 from rasmus import util,  treelib
 from compbio import phylo
 
+import dlcoal.sim
 
 #=============================================================================
 # options
@@ -58,7 +60,8 @@ times = treelib.get_tree_timestamps(stree)
 # perform simulations
 
 # NOTE: use 2*n for diploid species
-dlcoal.dlcoal_sims(outdir, conf.iter, stree, 2*conf.popsize, duprate, lossrate,
-                   minsize=conf.minsize)
+dlcoal.sim.dlcoal_sims(
+    outdir, conf.iter, stree, 2*conf.popsize, duprate, lossrate,
+    minsize=conf.minsize)
 
 

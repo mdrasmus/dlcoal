@@ -31,33 +31,45 @@ if dlcoal.dlcoalc:
             c_double_p, "doomtable", c_int, "maxdoom"])
 
 
-def prob_dup_loss(tree, stree, recon, duprate, lossrate,
-                  maxdoom=20, events=None):
+def prob_dup_loss(tree, stree, recon, events, duprate, lossrate,
+                  maxdoom=20):
     """Returns the topology prior of a gene tree"""
 
+    if dlcoal.dlcoalc:
+        if events is None:
+            events = phylo.label_events(tree, recon)
 
-    if events is None:
-        events = phylo.label_events(tree, recon)
+        ptree, nodes, nodelookup = dlcoal.make_ptree(tree)
+        pstree, snodes, snodelookup = dlcoal.make_ptree(stree)
 
-    ptree, nodes, nodelookup = dlcoal.make_ptree(tree)
-    pstree, snodes, snodelookup = dlcoal.make_ptree(stree)
+        ctree = dlcoal.tree2ctree(tree)
+        cstree = dlcoal.tree2ctree(stree)
+        recon2 = dlcoal.make_recon_array(tree, recon, nodes, snodelookup)
+        events2 = dlcoal.make_events_array(nodes, events)
 
-    ctree = dlcoal.tree2ctree(tree)
-    cstree = dlcoal.tree2ctree(stree)
-    recon2 = dlcoal.make_recon_array(tree, recon, nodes, snodelookup)
-    events2 = dlcoal.make_events_array(nodes, events)
+        doomtable = c_list(c_double, [0] * len(stree.nodes))
+        dlcoal.dlcoalc.calcDoomTable(cstree, duprate, lossrate, maxdoom, doomtable)
 
-    doomtable = c_list(c_double, [0] * len(stree.nodes))
-    dlcoal.dlcoalc.calcDoomTable(cstree, duprate, lossrate, maxdoom, doomtable)
-    
-    p = dlcoal.dlcoalc.birthDeathTreePriorFull(ctree, cstree,
-                                c_list(c_int, recon2), 
-                                c_list(c_int, events2),
-                                duprate, lossrate, doomtable, maxdoom)
-    dlcoal.dlcoalc.deleteTree(ctree)
-    dlcoal.dlcoalc.deleteTree(cstree)
+        p = dlcoal.dlcoalc.birthDeathTreePriorFull(ctree, cstree,
+                                    c_list(c_int, recon2), 
+                                    c_list(c_int, events2),
+                                    duprate, lossrate, doomtable, maxdoom)
+        dlcoal.dlcoalc.deleteTree(ctree)
+        dlcoal.dlcoalc.deleteTree(cstree)
 
-    return p
+        return p
+
+    else:
+        if "dlcoal_python_fallback" not in globals():
+            print >>sys.stderr, "warning: using python code instead of native"
+            globals()["dlcoal_python_fallback"] = 1
+            # spidir libs
+            import spidir
+            from spidir import topology_prior
+            
+        return topology_prior.dup_loss_topology_prior(
+            tree, stree, recon, duprate, lossrate,
+            maxdoom=maxdoom, events=events)
 
 
 def sample_dup_times(tree, stree, recon, birth, death,

@@ -2,6 +2,7 @@
 import sys, copy
 
 import dlcoal
+from dlcoal import duploss
 
 from rasmus import util, stats, treelib
 
@@ -395,7 +396,7 @@ class DLCoalTreeSearch (phylo.TreeSearch):
         #print tree.root.name
         #treelib.draw_tree_names(tree, maxlen=8)
         
-        return dlcoal.prob_tree_birth_death(
+        return duploss.prob_dup_loss(
             tree, self.stree, recon, events,
             self.duprate, self.lossrate, maxdoom=maxdoom)
 
