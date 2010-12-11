@@ -2,6 +2,7 @@
 # DLCoal Reconciliation
 
 import sys
+import time
 import random
 from os.path import dirname
 import optparse
@@ -28,6 +29,8 @@ o.add_option("-s", "--stree", dest="stree", metavar="SPECIES_TREE")
 o.add_option("-S", "--smap", dest="smap", metavar="GENE_TO_SPECIES_MAP")
 o.add_option("-n", "--popsize", dest="popsize", metavar="POPULATION_SIZE",
              type="float")
+o.add_option("", "--popsizes", dest="popsizes",
+             metavar="POPULATION_SIZE_FILE")
 o.add_option("-D", "--duprate", dest="duprate", metavar="DUPLICATION_RATE",
              type="float")
 o.add_option("-L", "--lossrate", dest="lossrate", metavar="LOSS_RATE",
@@ -59,9 +62,6 @@ if len(args) == 0:
     o.print_help()
     sys.exit(1)
 
-if conf.seed is not None:
-    random.seed(conf.seed)
-# TODO: seed C too
 
 
 #=============================================================================
@@ -85,18 +85,34 @@ for node in coal_tree:
 coal_tree.default_data.clear()
 
 
+# get popsizes
+#  NOTE: popsize is multiplied by 2 to account for diploid species
+if conf.popsizes:
+    poptree = treelib.read_tree(conf.popsizes)
+    popsizes = dict((node.name, node.dist) for node in poptree)
+else:
+    popsizes = 2 * conf.popsize
 
+
+# start logging
 if conf.log:
     log_out = open(conf.log, "w")
 else:
     log_out = open(
         util.replace_ext(treefile, conf.inext, conf.outext + ".log"), "w")
 
+# set random seed
+if conf.seed is None:
+    conf.seed = int(time.time() * 100)
+random.seed(conf.seed)
+if dlcoal.dlcoalc:
+    dlcoal.dlcoalc.srand(conf.seed)
+log_out.write("seed: %d\n" % conf.seed)
+
 
 # perform reconciliation
-#  NOTE: popsize is multiplied by 2 to account for diploid species
 maxrecon = dlcoal.recon.dlcoal_recon(
-    coal_tree, stree, smap, 2*conf.popsize, duprate, lossrate,
+    coal_tree, stree, smap, popsizes, duprate, lossrate,
     premean=.5 * times[stree.root],
     nsamples=conf.nsamples, nprescreen=conf.nprescreen,
     nsearch=conf.iter, log=log_out)
