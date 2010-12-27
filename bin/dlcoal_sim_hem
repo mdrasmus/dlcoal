@@ -36,8 +36,18 @@ o.add_option("-g", "--gentime", dest="gentime", metavar="GENRATION_TIME",
              type="float")
 o.add_option("-i", "--iter", dest="iter", metavar="NUMBER_OF_SIMULATION",
              type="int", default=1)
+o.add_option("", "--startiter", dest="startiter",
+             metavar="STARTING ITERATION",
+             type="int", default=0)
 o.add_option("", "--minsize", dest="minsize", metavar="MIN_NUMBER_OF_LEAVES",
              type="int", default=0)
+o.add_option("", "--full_log", dest="full_log", action="store_true",
+             default=False)
+o.add_option("", "--nsteps", dest="nsteps", metavar="NUMBER_OF_STEPS",
+             type="int", default=100)
+#o.add_option("", "--nocoal", dest="nocoal", action="store_true",
+#             default=False)
+
 
 
 conf, args = o.parse_args()
@@ -62,6 +72,9 @@ times = treelib.get_tree_timestamps(stree)
 # NOTE: use 2*n for diploid species
 dlcoal.sim_hem.dlcoal_sims(
     outdir, conf.iter, stree, 2*conf.popsize, duprate, lossrate,
-    minsize=conf.minsize)
+    minsize=conf.minsize,
+    nsteps=conf.nsteps,
+    start=conf.startiter,
+    full_log=conf.full_log)
 
 

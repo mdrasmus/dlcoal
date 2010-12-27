@@ -369,7 +369,7 @@ def show_data_files(prefix, stree,
     if conf.nocoal:
         draw_tree_recon(locus_tree, locus_recon, locus_events, stree,
                         xscale=conf.xscale, filename=stream,
-                        locus_recon_color=locus_recon_color,
+                        #locus_recon_color=locus_recon_color,
                         recon_color=locus_recon_color)
         
     elif conf.noduploss:

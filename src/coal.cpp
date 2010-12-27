@@ -120,7 +120,7 @@ double num_labeled_histories(int nleaves, int nroots)
 
 
 // Returns the count of gene lineages present at each node in the species
-// tree 'tree' given a gene tree 'tree' and reconciliation 'recon'
+// tree 'pstree' given a reconciliation 'recon'
 void count_lineages_per_branch(LineageCounts *counts,
     int nnodes, int *recon, int *pstree, int nsnodes)
 {
@@ -226,7 +226,7 @@ double prob_multicoal_recon_topology(int *ptree, int nnodes, int *recon,
         //    continue;
 
         const int n = top_stats.nodes_per_species[snode];
-        double fact=1.0; for (int i=2; i<=n; i++) fact *= i; // fact(n)
+        double fact = 1.0; for (int i=2; i<=n; i++) fact *= i; // fact(n)
             
         double p = log(prob_coal_counts(a, b, sdists[snode], popsizes[snode])
                    * fact / num_labeled_histories(a, b));
@@ -237,7 +237,7 @@ double prob_multicoal_recon_topology(int *ptree, int nnodes, int *recon,
     const int snode = nsnodes - 1;
     const int a = counts.starts[snode];
     const int n = top_stats.nodes_per_species[snode];
-    double fact=1.0; for (int i=2; i<=n; i++) fact *= i; // fact(n)
+    double fact = 1.0; for (int i=2; i<=n; i++) fact *= i; // fact(n)
     lnp += log(fact / num_labeled_histories(a, 1));
 
     const int nleaves = (nnodes + 1) / 2;
@@ -270,7 +270,7 @@ double prob_multicoal_recon_topology2(intnode *itree, int nnodes, int *recon,
             continue;
 
         const int n = top_stats.nodes_per_species[snode];
-        double fact=1.0; for (int i=2; i<=n; i++) fact *= i; // fact(n)
+        double fact = 1.0; for (int i=2; i<=n; i++) fact *= i; // fact(n)
             
         const double t = stimes[pstree[snode]] - stimes[snode];
         lnp += log(prob_coal_counts(a, b, t, popsizes[snode])
@@ -281,7 +281,7 @@ double prob_multicoal_recon_topology2(intnode *itree, int nnodes, int *recon,
     const int snode = nsnodes - 1;
     const int a = counts.starts[snode];
     const int n = top_stats.nodes_per_species[snode];
-    double fact=1.0; for (int i=2; i<=n; i++) fact *= i; // fact(n)
+    double fact = 1.0; for (int i=2; i<=n; i++) fact *= i; // fact(n)
     lnp += log(fact / num_labeled_histories(a, 1));
 
     const int nleaves = (nnodes + 1) / 2;
@@ -357,6 +357,7 @@ void calc_prob_counts_table(ProbCounts *prob_counts,
             }
         }
         sizes[snode] = M;
+        // TODO: add single child case
 
         // populate ending lineage counts
         const double n = popsizes[snode];
