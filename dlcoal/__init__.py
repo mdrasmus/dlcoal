@@ -65,7 +65,7 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
                                daughters,
                                stree, n, duprate, lossrate,
                                pretime=None, premean=None,
-                               maxdoom=20, nsamples=100,
+                               nsamples=100,
                                add_spec=True, info=None):
     """
     Probability of a reconcile gene tree in the DLCoal model.
@@ -97,7 +97,7 @@ def prob_dlcoal_recon_topology(coal_tree, coal_recon,
     # duploss probability
     dl_prob = duploss.prob_dup_loss(
         locus_tree, stree, locus_recon, locus_events,
-        duprate, lossrate, maxdoom=maxdoom)
+        duprate, lossrate)
     
     # daughters probability
     dups = phylo.count_dup(locus_tree, locus_events)

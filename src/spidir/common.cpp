@@ -3,7 +3,7 @@
     SPIDIR - SPecies Informed DIstanced-based Reconstruction
     
     Matt Rasmussen
-    Wed Jun 13 22:09:24 EDT 2007
+    Thu Nov 18 17:06:53 EST 2010
 
 
 =============================================================================*/
@@ -13,7 +13,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
+
 
 // spidir headers
 #include "common.h"
@@ -46,6 +46,9 @@ double fchoose(int n, int k)
     return t;
 }
 
+
+//=============================================================================
+// distributions
 
 extern "C" {
 
@@ -87,8 +90,11 @@ float normalvariate(float mu, float sigma)
 }
 
 
-
 } // extern "C"
+
+
+//=============================================================================
+// sorting
 
 // Invert a permutation
 void invertPerm(int *perm, int *inv, int size)
@@ -96,7 +102,6 @@ void invertPerm(int *perm, int *inv, int size)
     for (int i=0; i<size; i++)
         inv[perm[i]] = i;
 }
-
 
 
 

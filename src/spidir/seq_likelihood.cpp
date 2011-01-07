@@ -12,20 +12,21 @@
 #include <math.h>
 #include <time.h>
 
-
 // 3rd party
 #include <gsl/gsl_roots.h>
 #include <gsl/gsl_multimin.h>
 
 // spidir headers
 #include "common.h"
+#include "hky.h"
 #include "logging.h"
 #include "Matrix.h"
-#include "seq_likelihood.h"
 #include "parsimony.h"
+#include "roots.h"
+#include "seq_likelihood.h"
 #include "spidir.h"
 #include "Tree.h"
-#include "hky.h"
+
 
 
 

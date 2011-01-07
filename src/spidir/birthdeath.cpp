@@ -24,7 +24,7 @@ double birthDeathCount(int ngenes, float time,
         const double ut = time / (1.0 / birthRate + time);
         if (ngenes == 0)
             return ut;
-        return ((1.0 - ut)*(1.0 - ut)) * ipow(ut, ngenes-1);
+        return (1.0 - ut)*(1.0 - ut) * ipow(ut, ngenes-1);
     }
 
     const double r = l - u;
@@ -36,6 +36,8 @@ double birthDeathCount(int ngenes, float time,
     if (ngenes == 0)
         return p0;
     
+    // p(0, t) = ut
+    // p(1, t) = ...
     // (1.0 - p0)*(1.0 - ut) * ut^{ngenes-1}
     return (1.0 - p0)*(1.0 - ut) * ipow(ut, ngenes-1);
 }

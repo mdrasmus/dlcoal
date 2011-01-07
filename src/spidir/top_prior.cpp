@@ -8,7 +8,7 @@
 #include "common.h"
 #include "phylogeny.h"
 #include "Tree.h"
-#include "treevis.h"
+
 
 
 namespace spidir
@@ -17,103 +17,19 @@ namespace spidir
 extern "C" {
 
 
-// returns the number of labeled histories with 'ngenes' surviving lineages
-int inumHistories(int ngenes)
-{
-    // gaurd against overflow
-    assert(ngenes <= 9);
-
-    int n = 1;
-    for (int i=2; i<=ngenes; i++) {
-        n *= i*(i-1) / 2;
-    }
-    return n;
-}
-
-
-// returns the number of labeled histories with 'ngenes' surviving lineages
-double numHistories(int ngenes)
-{
-    double n = 1;
-    for (int i=2; i<=ngenes; i++) {
-        n *= i*(i-1) / 2;
-    }
-    return n;
-}
-
-// returns the number of labeled histories exist for the given tree topology
-// NOTE: assumes binary tree
-int inumTopologyHistories(Tree *tree)
-{
-    int n = 1;
-
-    // get nodes in post order
-    ExtendArray<Node*> nodes(0, tree->nnodes);
-    getTreePostOrder(tree, &nodes);
-
-    // count number of descendant internal nodes
-    ExtendArray<int> ninternals(tree->nnodes);
-
-    for (int i=0; i<tree->nnodes; i++) {
-        Node *node = nodes[i];
-
-        if (node->isLeaf()) {
-            ninternals[node->name] = 0;
-        } else {
-            // count internal children
-            const int right = ninternals[node->children[0]->name];
-            const int left = ninternals[node->children[1]->name];
-            ninternals[node->name] = 1 + right + left;
-            n *= choose(right + left, right);
-        }
-    }
-
-    return n;
-}
-
-
-// returns the number of labeled histories exist for the given tree topology
-// NOTE: assumes binary tree
-double numTopologyHistories(Tree *tree)
-{
-    double n = 1;
-
-    // get nodes in post order
-    ExtendArray<Node*> nodes(0, tree->nnodes);
-    getTreePostOrder(tree, &nodes);
-
-    // count number of descendant internal nodes
-    ExtendArray<int> ninternals(tree->nnodes);
-
-    for (int i=0; i<tree->nnodes; i++) {
-        Node *node = nodes[i];
-
-        if (node->isLeaf()) {
-            ninternals[node->name] = 0;
-        } else {
-            // count internal children
-            const int right = ninternals[node->children[0]->name];
-            const int left = ninternals[node->children[1]->name];
-            ninternals[node->name] = 1 + right + left;
-            n *= fchoose(right + left, right);
-        }
-    }
-
-    return n;
-}
-
+// TODO: make this into a class, so that allocations can happen once
 
 // returns the number of labeled histories exist for the given tree topology
 // uses the subtree starting at root and going until leaves.
 // NOTE: assumes binary tree
-double numSubtopologyHistories(Tree *tree, Node *root, ExtendArray<Node*> &leaves)
+double subtreeCorrection(Tree *tree, Node *root, ExtendArray<Node*> &leaves)
 {
-    double n = 1;
+    double n = 1.0;
     
     // get nodes in post order
     ExtendArray<Node*> queue(0, tree->nnodes);
 
-    // count number of descendant internal nodes
+    // helper array for ensuring postorder traversal
     ExtendArray<int> visited(tree->nnodes);
     for (int i=0; i<visited.size(); i++)
         visited[i] = 0;
@@ -143,8 +59,8 @@ double numSubtopologyHistories(Tree *tree, Node *root, ExtendArray<Node*> &leave
         // count internal children
         const int right = ninternals[node->children[1]->name];
         const int left = ninternals[node->children[0]->name];
-        ninternals[node->name] = 1 + right + left;
-        n *= fchoose(right + left, right);
+        const int x = ninternals[node->name] = 1 + right + left;
+        n /= x;
 
         if (node == root)
             return n;
@@ -165,135 +81,41 @@ double numSubtopologyHistories(Tree *tree, Node *root, ExtendArray<Node*> &leave
     return n;
 }
 
-int intCmp(const void *_a, const void *_b)
+
+// N_n(T) = prod_u (c_u!)^{-1}
+double fullTreeCorrection(Tree *tree, Tree *stree, int *recon)
 {
-    return *((int*) _a) - *((int*) _b);
-}
-
-
-/*
-int numRedundantTopologies_helper(Node *node, 
-				 bool *leafset, 
-				 int *hashids)
-{
-    if (leafset[node->name] == true)
-	return 0;
-    else {
-	if (node->nchildren == 1)
-	    return numRedundantTopologies_helper(node->children[0],
-						leafset, hashids);
-	else if (node->nchildren == 2) {
-	    int n = int(hashids[node->children[0]->name] == 
-			hashids[node->children[1]->name]);
-	    return n + numRedundantTopologies_helper(node->children[0],
-						    leafset, hashids)
-		     + numRedundantTopologies_helper(node->children[1],
-						    leafset, hashids);
-	} else {
-	    // NOTE: cannot handle multifurcating nodes
-	    assert(0);
-	}
-    }
-}
-*/
-
-// N_n(T, allLeaves=false) = 2^{-M(T)} prod_u c_u!
-// N_n(T, allLeaves=true) = 2^{-M(T)} L(T)!
-double numRedundantTopologies(Tree *tree, Node *root, 
-                              ExtendArray<Node*> &leaves, 
-                              int *hashids, bool allLeaves)
-{
-
-    // get nodes in post order
-    ExtendArray<Node*> queue(0, 2 * tree->nnodes);
-
-    // initialize visited array to zeros
-    ExtendArray<int> visited(tree->nnodes);
-    for (int i=0; i<visited.size(); i++)
-        visited[i] = 0;
-    
-    // process leaves
-    for (int i=0; i<leaves.size(); i++) {
-        Node *node = leaves[i];        
-        // queue parent
-        visited[node->parent->name]++;
-        queue.append(node->parent);
-    }
-
-    int nmirrors = 0;
-    
-    // go up tree until root
-    for (int i=0; i<queue.size(); i++) {
-        Node *node = queue[i];
-        
-        // do not process a node until all children are processed
-        if (visited[node->name] != node->nchildren)
-            continue;
-        
-        // count internal children
-        if (node->nchildren == 2) {
-            nmirrors += int(hashids[node->children[0]->name] == 
-                            hashids[node->children[1]->name]);
-        } else {
-            // we do not handle multifurcating nodes
-            assert(node->nchildren < 2);
-        }
-
-        if (node == root)
-            break;
-
-        visited[node->name]++;
-        visited[node->parent->name]++;
-        queue.append(node->parent);
-    }
-
-    //printf("queue.size = %d\n", queue.size());
-
     double val = 0.0;
+    ExtendArray<int> spcount(stree->nnodes);
 
-    if (allLeaves) {
-        // val = log(factorial(leaves.size()))
-        for (double i=2.0; i<=leaves.size(); i+=1.0)
-            val += logf(i);
-    } else {
-        // get hashes
-        ExtendArray<int> leafhashes(0, leaves.size());
-        for (int i=0; i<leaves.size(); i++)
-            leafhashes.append(hashids[leaves[i]->name]);
-    
-        qsort((void*) leafhashes.get(), leafhashes.size(), sizeof(int), intCmp);
-
-        double colorsize = 1;
-        for (int i=1; i<leaves.size(); i++) {
-            if (leafhashes[i] != leafhashes[i-1]) {
-                // val *= factorial(colorsize)
-                for (double j=2; j<=colorsize; j+=1.0)
-                    val += logf(j);
-                colorsize = 1.0;
-            } else {
-                colorsize += 1.0;
-            }
+    // count genes per species
+    for (int i=0; i<stree->nnodes; i++)
+        spcount[i] = 0;
+    for (int i=0; i<tree->nnodes; i++) {
+        if (tree->nodes[i]->isLeaf()) {
+            double x = ++spcount[recon[tree->nodes[i]->name]];
+            val -= logf(x);
         }
-        for (double j=2; j<=colorsize; j+=1.0)
-            val += logf(j);
     }
-
-    // divide by 2^M
-    for (int i=0; i<nmirrors; i++)
-        val -=  logf(2.0);
 
     return val;
 }
 
 
-
 // computes the entries of the doom probabilty table
-void calcDoomTable(Tree *tree, float birthRate, float deathRate, int maxdoom,
+// uses analytic solution to infinite summation
+void calcDoomTable(Tree *tree, float birthRate, float deathRate, 
                    double *doomtable)
 {
+    const double l = birthRate;
+    const double u = deathRate;
+    const double r = l - u;
+    const double lu = l / u;
+    double p0, p1;
+
     // get nodes in post order
     ExtendArray<Node*> nodes(0, tree->nnodes);
-    getTreePostOrder(tree, &nodes);
+    getTreePostOrder(tree, &nodes);    
 
     
     for (int i=0; i<tree->nnodes; i++) {
@@ -301,40 +123,33 @@ void calcDoomTable(Tree *tree, float birthRate, float deathRate, int maxdoom,
         
         if (node->isLeaf()) {
             doomtable[node->name] = -INFINITY;
-        } else {
-            double prod = 0.0;
-            
+        } else {          
+            double prod = 0.0;            
             for (int j=0; j<node->nchildren; j++) {
                 Node *child = node->children[j];
-                double sum = 0.0;
 
-                for (int ndoom=0; ndoom<=maxdoom; ndoom++) {                    
-                    sum += (birthDeathCount(ndoom, child->dist, 
-                                            birthRate, deathRate) *
-                            ipow(exp(doomtable[child->name]), ndoom));
+                // compute u_t and P(t(c))
+                const double t = child->dist;
+                const double dc = exp(doomtable[child->name]);
+
+                if (birthRate == deathRate) {
+                    const double lt = l * t;
+                    const double lt1 = 1.0 + lt;
+                    p0 = lt / lt1;
+                    p1 = 1.0 / lt1 / lt1;
+                } else {
+                    const double ert = exp(-r * t);
+                    const double luert = l - u*ert;
+                    p0 = (u - u * ert) / luert;
+                    p1 = r*r * ert / luert / luert;
                 }
 
-                prod += log(sum);
+                prod += log(p0 + dc * p1 / (1.0 - lu * p0 * dc));
             }
 	    
             doomtable[node->name] = prod;
         }
     }
-}
-
-
-
-int countDups(Node *node, int *events) 
-{
-    int count = 0;
-    if (events[node->name] == EVENT_DUP) {
-        count++;
-    
-        for (int i=0; i<node->nchildren; i++)
-            count += countDups(node->children[i], events);
-    }
-    
-    return count;
 }
 
 
@@ -345,13 +160,13 @@ void getSpecSubtree(Node *node, Node *snode, int *recon, int *events,
     for (int i=0; i<node->nchildren; i++) {
         Node *child = node->children[i];
 
-        // only consider nodes the reconcile to snode
+        // only consider nodes that reconcile to snode
         if (recon[child->name] == snode->name) {
             if (events[child->name] == EVENT_SPEC ||
                 events[child->name] == EVENT_GENE)
             {
                 nodes.append(child);
-            } else {
+            } else { // EVENT_DUP
                 getSpecSubtree(child, snode, recon, events, nodes);
             }
         }
@@ -359,173 +174,19 @@ void getSpecSubtree(Node *node, Node *snode, int *recon, int *events,
 }
 
 
-
-class KeyList {
-public:
-    KeyList(int key) : 
-        key(key),
-        next(NULL)
-    {}
-
-    int key;
-    KeyList *next;
-};
-
-class HashNode {
-public:
-    HashNode(int nodeid, KeyList *start, KeyList *end, int len) :
-        nodeid(nodeid),
-	start(start),
-	end(end),
-	len(len)
-    {}
-
-    int nodeid;
-    KeyList *start;
-    KeyList *end;
-    int len;
-};
-
-
-int hashNodeCmp(const void *_a, const void *_b)
-{
-    HashNode *a = *((HashNode**) _a);
-    HashNode *b = *((HashNode**) _b);
-    
-    // first compare diffs
-    int diff = a->len - b->len;
-    if (diff) {
-    	return diff;
-    } else {
-        // compare keys
-	KeyList *keya = a->start;
-	KeyList *keyb = b->start;
-
-	while (true) {
-	    diff = keya->key - keyb->key;
-	    if (diff)
-		return diff;
-            if (keya == a->end || keyb == b->end)
-                break;
-            keya = keya->next;
-            keyb = keyb->next;
-	}
-
-	// both hashes are the same
-	// 1. same length
-	// 2. same key subsequence
-	return 0;
-    }
-}
-
-
-
-void getHashIds(Tree *tree, int *recon, int *hashids)
-{
-
-    ExtendArray<HashNode*> hashnodes(tree->nnodes);
-    ExtendArray<KeyList*> keylist(tree->nnodes);
-
-    // get post order of nodes
-    ExtendArray<Node*> postnodes(0, tree->nnodes);
-    getTreePostOrder(tree, &postnodes);    
-
-    // build hash nodes
-    for (int i=0; i<postnodes.size(); i++)
-    {
-        Node *node=postnodes[i];
-        
-        if (node->isLeaf()) {
-            KeyList *key = new KeyList(recon[node->name]);
-            keylist[node->name] = key;
-            hashnodes[node->name] = new HashNode(node->name, key, key, 1);
-        } else {
-            if (node->nchildren == 1) {                
-                KeyList *key = new KeyList(-1);
-                keylist[node->name] = key;
-                HashNode *hnode1 = hashnodes[node->children[0]->name];
-
-                // join lists: list1 -> key
-                hashnodes[node->name] = 
-                    new HashNode(node->name, hnode1->start, key, 
-                                 hnode1->len + 1);
-                hnode1->end->next = key;
-                
-            } else if (node->nchildren == 2) {
-                KeyList *key = new KeyList(-2);
-                keylist[node->name] = key;
-                HashNode *hnode1 = hashnodes[node->children[0]->name];
-                HashNode *hnode2 = hashnodes[node->children[1]->name];
-                int len = hnode1->len + hnode2->len + 1;
-                int cmp = hashNodeCmp(&hnode1, &hnode2);
-
-                if (cmp <= 0) {
-                    // join lists: list1 -> list2 -> key
-                    hashnodes[node->name] = new HashNode(node->name,
-                                                         hnode1->start, 
-                                                         key,
-                                                         len);
-                    hnode1->end->next = hnode2->start;
-                    hnode2->end->next = key;
-                } else {
-                    // join lists: list2 -> list1 -> key
-                    hashnodes[node->name] = new HashNode(node->name,
-                                                         hnode2->start, 
-                                                         key,
-                                                         len);
-                    hnode2->end->next = hnode1->start;
-                    hnode1->end->next = key;
-                }
-            } else {
-                // cannot handle multifurcating nodes
-                assert(0);
-            }
-        }
-    }
-
-    // sort hashnodes
-    qsort((void*) hashnodes.get(), hashnodes.size(), sizeof(HashNode*),
-	  hashNodeCmp);
-    
-    int hashid = 0;
-    hashids[hashnodes[0]->nodeid] = hashid;
-    for (int i=1; i<hashnodes.size(); i++) {
-	// use new hashid if nodes differ
-	if (hashNodeCmp(&hashnodes[i], &hashnodes[i-1]))
-	    hashid++;
-	hashids[hashnodes[i]->nodeid] = hashid;
-    }
-    
-
-    // clean up
-    for (int i=0; i<tree->nnodes; i++) {
-	delete hashnodes[i];
-        delete keylist[i];
-    }
-
-    //printf("hashids = ");
-    //printIntArray(hashids, tree->nnodes);
-    //printf("\n");
-}
-
-
-
 // TODO: does not handle branches above the species tree root yet
 // NOTE: assumes binary species tree
 double birthDeathTreePrior(Tree *tree, Tree *stree, int *recon, 
                            int *events, float birthRate, float deathRate,
-                           double *doomtable, int maxdoom)
+                           double *doomtable)
 {
-
+    const double l = birthRate;
+    const double u = deathRate;
+    const double r = l - u;
+    const double lu = l / u;
+    double p0, p1;
     double prob = 0.0;
-    ExtendArray<Node*> subleaves(0, tree->nnodes);
-    
-    // catch undefined params
-    if (birthRate == deathRate)
-        deathRate = .99 * birthRate;
-    
-    ExtendArray<int> hashids(tree->nnodes);
-    getHashIds(tree, recon, hashids);
+    ExtendArray<Node*> subleaves(0, tree->nnodes);    
 
     // preroot duplications
     //if (events[tree->root->name] == EVENT_DUP)
@@ -544,32 +205,36 @@ double birthDeathTreePrior(Tree *tree, Tree *stree, int *recon,
                 subleaves.clear();
                 getSpecSubtree(node, schild, recon, events, subleaves);
 
-		double nhist, thist;
+                // compute u_t and P(t(c))
+                const double t = schild->dist;
+                const double dc = exp(doomtable[schild->name]);
+                const int s = subleaves.size();
+                
+                if (birthRate == deathRate) {
+                    const double lt = l * t;
+                    const double lt1 = 1.0 + lt;
+                    p0 = lt / lt1;
+                    p1 = 1.0 / lt1 / lt1;
+                } else {
+                    const double ert = exp(-r * t);
+                    const double luert = l - u*ert;
+                    p0 = (u - u * ert) / luert;
+                    p1 = r*r * ert / luert / luert;
+                }
 
-		if (subleaves.size() == 0) {
-		    nhist = 1.0;
-		    thist = 1.0;
-		} else {
-		    nhist = numSubtopologyHistories(tree, node, subleaves);
-		    thist = numHistories(subleaves.size());		    
-
-		    if (subleaves[0]->isLeaf()) {
-                        // correct subtrees that have leaves
-			nhist *= exp(numRedundantTopologies(tree, node, 
-                                                            subleaves, 
-                                                            hashids,
-                                                            false));
-		    } else {
-                        // correct subtrees that have leaves
-			double a = exp(numRedundantTopologies(tree, node, 
-                                                              subleaves, 
-                                                              hashids,
-                                                              true));
-                        nhist *= a;
-                    }
-		}
-		
-                // sum over ndoom
+                if (s > 1) {
+                    prob += log(subtreeCorrection(tree, node, subleaves));
+                    prob += log(pow(lu * p0, s-1) * p1 / 
+                            (pow(1.0 - lu * p0 * dc, s+1)));
+		} else if (s == 1) {
+                    const double a = 1.0 - lu * p0 * dc;
+                    prob += log(p1 / a / a);
+                } else { // s == 0
+                    prob += log(p0 + p1 * dc / (1.0 - lu * p0 *dc));
+                }
+                
+                // sum over ndoom; non-analytic solution
+                /*
                 double sum = 0.0;
                 for (int ndoom=0;  ndoom<=maxdoom; ndoom++) {
                     int totleaves = subleaves.size() + ndoom;
@@ -579,32 +244,27 @@ double birthDeathTreePrior(Tree *tree, Tree *stree, int *recon,
                                         birthRate, deathRate) *
                         ipow(exp(doomtable[schild->name]), ndoom);
                 }
-
-                prob += log(nhist) - log(thist) + log(sum);
+                prob += log(sum);
+                */
             }
+        } else if (events[node->name] == EVENT_DUP) {
+            // 2^{|dup(T, R, S)|}
+            prob += log(2.0);
         }
     }
 
-    ExtendArray<Node*> leaves(0, tree->nnodes);
-    for (int i=0; i<tree->nnodes; i++) {
-	if (tree->nodes[i]->isLeaf())
-	    leaves.append(tree->nodes[i]);
-    }
-    double x = numRedundantTopologies(tree, tree->root, leaves, 
-                                      hashids, false);
-    prob -= x;
     
+    prob += fullTreeCorrection(tree, stree, recon);
     return prob;
 }
-
 
 
 // Convenience function
 // Adds and removes implied species nodes to the gene tree
 // NOTE: assumes binary species tree
 double birthDeathTreePriorFull(Tree *tree, Tree *stree, int *recon, 
-                              int *events, float birthRate, float deathRate,
-                              double *doomtable, int maxdoom)
+                               int *events, float birthRate, float deathRate,
+                               double *doomtable)
 {
     ExtendArray<int> recon2(0, 2 * tree->nnodes);
     recon2.extend(recon, tree->nnodes);
@@ -616,49 +276,14 @@ double birthDeathTreePriorFull(Tree *tree, Tree *stree, int *recon,
     int addedNodes = addImpliedSpecNodes(tree, stree, recon2, events2);
     double p = birthDeathTreePrior(tree, stree, recon2, events2, 
                                    birthRate, deathRate,
-                                   doomtable,  maxdoom);
+                                   doomtable);
     removeImpliedSpecNodes(tree, addedNodes);
 
     return p;
 }
 
 
-
-
-
-
-//=============================================================================
-// get/set tree node timestamps
-
-void getNodeTimes_helper(Node *node, float time, float *times)
-{
-    const float t = time + node->dist;
-    times[node->name] = t;
-    
-    for (int i=0; i<node->nchildren; i++)
-        getNodeTimes_helper(node->children[i], t, times);
-}
-
-// gets the time from the root for each node
-void getNodeTimes(Tree *tree, float *times)
-{
-    getNodeTimes_helper(tree->root, 0.0, times);
-}
-
-void setNodeTimes(Tree *tree, float *times)
-{
-    for (int i=0; i<tree->nnodes; i++) {
-        Node *node = tree->nodes[i];
-        if (node->parent) {
-            node->dist = times[node->name] - times[node->parent->name];
-        } else {
-            // root branch
-            node->dist = times[node->name];
-        }
-    }
-}
-
-
 }
 
 } // namespace spidir
+

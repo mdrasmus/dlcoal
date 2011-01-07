@@ -105,7 +105,7 @@ if spidir:
     # topology prior birthdeath functions
     export(spidir, "inumHistories", c_int, [c_int, "nleaves"])
     export(spidir, "numHistories", c_double, [c_int, "nleaves"])
-    export(spidir, "numTopologyHistories", c_double, [c_void_p, "tree"])
+    #export(spidir, "numTopologyHistories", c_double, [c_void_p, "tree"])
     export(spidir, "birthDeathCount", c_double,
            [c_int, "ngenes", c_float, "time",
             c_float, "birth", c_float, "death"])
@@ -144,17 +144,17 @@ if spidir:
     # tree topology
     export(spidir, "calcDoomTable", c_int,
            [c_void_p, "tree", c_float, "birth", c_float, "death",
-            c_int, "maxdoom", c_double_p, "doomtable"])
+            c_double_p, "doomtable"])
     export(spidir, "birthDeathTreePrior", c_double,
            [c_void_p, "tree", c_void_p, "stree",
             c_int_p, "recon", c_int_p, "events",
             c_float, "birth", c_float, "death",
-            c_double_p, "doomtable", c_int, "maxdoom"])
+            c_double_p, "doomtable"])
     export(spidir, "birthDeathTreePriorFull", c_double,
            [c_void_p, "tree", c_void_p, "stree",
             c_int_p, "recon", c_int_p, "events",
             c_float, "birth", c_float, "death",
-            c_double_p, "doomtable", c_int, "maxdoom"])
+            c_double_p, "doomtable"])
     export(spidir, "sampleBirthWaitTime", c_double,
            [c_int, "n", c_float, "T", c_float, "birth", c_float, "death"])
     export(spidir, "birthWaitTime", c_double,
@@ -395,7 +395,6 @@ def make_events_array(nodes, events):
 def search_climb(genes, align, stree, gene2species,
                  params, birth, death, pretime,
                  bgfreq=[.25,.25,.25,.25], kappa=1.0,
-                 maxdoom=20,
                  niter=50, quickiter=100,                 
                  nsamples=100, branch_approx=True):
     """Search for a MAP gene tree"""
@@ -437,7 +436,7 @@ def search_climb(genes, align, stree, gene2species,
 def calc_joint_prob(align, tree, stree, recon, events, params,
                     birth, death, pretime,
                     bgfreq, kappa,
-                    maxdoom=20, nsamples=100, branch_approx=True,
+                    nsamples=100, branch_approx=True,
                     terms=False):
     """Calculate the joint probability of a gene tree"""
     
@@ -445,7 +444,7 @@ def calc_joint_prob(align, tree, stree, recon, events, params,
                                   params, birth, death, pretime,
                                   nsamples, approx=branch_approx)
     topp = calc_birth_death_prior(tree, stree, recon,
-                                  birth, death, maxdoom,
+                                  birth, death, 
                                   events=events)
     seqlk = calc_seq_likelihood_hky(tree, align, bgfreq, kappa)
     
@@ -458,7 +457,7 @@ def calc_joint_prob(align, tree, stree, recon, events, params,
 #=============================================================================
 # topology prior
 
-def calc_birth_death_prior(tree, stree, recon, birth, death, maxdoom=20,
+def calc_birth_death_prior(tree, stree, recon, birth, death, 
                            events=None):
     """Returns the topology prior of a gene tree"""
 
@@ -476,12 +475,12 @@ def calc_birth_death_prior(tree, stree, recon, birth, death, maxdoom=20,
     events2 = make_events_array(nodes, events)
 
     doomtable = c_list(c_double, [0] * len(stree.nodes))
-    calcDoomTable(cstree, birth, death, maxdoom, doomtable)
+    calcDoomTable(cstree, birth, death, doomtable)
     
     p = birthDeathTreePriorFull(ctree, cstree,
                                 c_list(c_int, recon2), 
                                 c_list(c_int, events2),
-                                birth, death, doomtable, maxdoom)
+                                birth, death, doomtable)
     deleteTree(ctree)
     deleteTree(cstree)
 

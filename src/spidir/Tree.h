@@ -44,6 +44,9 @@ using namespace std;
 namespace spidir {
 
 
+// invariant: node->child->prev == last child of node
+// invariant: [last child of node].next == NULL
+
 
 // A node in the phylogenetic tree
 class Node
@@ -52,6 +55,9 @@ public:
     Node(int nchildren=0) :
         name(-1),
         parent(NULL),
+        //child(NULL),
+        //next(NULL),
+        //prev(NULL),
         children(NULL),
         nchildren(nchildren),
         dist(0.0)
@@ -90,11 +96,86 @@ public:
         setChildren(nchildren + 1);
         children[nchildren - 1] = node;
         node->parent = this;
+
+        /*
+        // update pointers
+        if (!child) {
+            // adding first child
+            child = node;
+            node->prev = node;
+        } else {
+            Node *last = child->prev;
+            last->next = node;
+            node->prev = last;
+            node->next = NULL;
+            child->prev = node;
+        }
+        */
     }
+
+    /*
+    void RemoveChild(Node *node)
+    {
+        if (node->next) {
+            // introduce your right sibling your left sibling
+            nodem->next->prev = node->prev;
+        } else if (elm != m_child) {
+            // removing last child, update last pointer
+            child->prev = node->prev;
+        }
+        
+        if (node != child) {
+            // introduce your left sibling your right sibling
+            node->prev->next = node->next;
+        } else {
+            // if removing first child, find new first child
+            // NOTE: node->next could be NULL and that is OK
+            child = node->next;
+        }
+        
+        // remove old links
+        node->parent = NULL;
+        node->next = NULL;
+        node->prev = NULL;
+    }
+    */
+
+    /*
+    void ReplaceChild(Node *oldchild, Node *newchild)
+    {
+        // copy over links
+        newchild->parent = this;
+        newchild->next = oldchild->next;
+        newchild->prev = oldchild->prev;
+    
+        // introduce newchild to siblings of old child
+        if (newchild->next)
+            newchild->next->prev = newchild;
+        if (child == oldchild) {
+            // replace first child
+            child = newchild;
+
+            if (oldchild->prev == oldchild)
+                // replace single child
+                newchild->prev = newchild;
+        } else
+            newchild->prev->next = newchild;
+    
+        oldchild->parent = NULL;
+        oldchild->next = NULL;
+        oldchild->prev = NULL;
+    }
+    */
+
     
     int name;           // node name id (matches index in tree.nodes)
     Node *parent;       // parent pointer
+    //Node *child;        // first child
+    //Node *next;         // next sibling
+    //Node *prev;         // prev sibling
+
     Node **children;    // array of child pointers (size = nchildren)
+
     int nchildren;      // number of children
     float dist;         // branch length above node
     string longname;    // node name (used mainly for leaves only)

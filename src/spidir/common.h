@@ -30,17 +30,74 @@ namespace spidir {
 #   define INFINITY 1e1000
 #endif
 
-
-
-//=============================================================================
-// Math
-
 // indexing a matrix stored as a single array (row-major)
 // m: number of columns
 // i: row index
 // j: column index
 #define matind(m, i, j) ((m)*(i) + (j))
 
+
+//=============================================================================
+// utilities
+
+template <class T>
+int findval(T *array, int size, const T &val)
+{
+    for (int i=0; i<size; i++)
+        if (array[i] == val)
+            return i;
+    return -1;
+}
+
+
+//=============================================================================
+// simple math
+
+int choose(int n, int k);
+
+double fchoose(int n, int k);
+
+
+// computes log(a + b) given log(a) and log(b)
+inline double logadd(double lna, double lnb)
+{
+    double diff = lna - lnb;
+    if (lna == 1.0)
+        return lnb;
+    if (lnb == 1.0)
+        return lna;
+    if (diff < 500.0)
+        return log(exp(diff) + 1.0) + lnb;
+    else
+        return lna;
+}
+
+
+template <class T>
+T ipow(T val, int expo)
+{
+    T result = 1.0;
+    unsigned int e = expo;
+
+    if ((int)e < 0) {
+	e = -e;
+	val = 1.0 / val;
+    }
+
+    while (true) {
+	if (e & 1)
+	    result *= val;
+	if ((e >>= 1) == 0)
+	    break;
+	val *= val;
+    }
+
+    return result;
+}
+
+
+//=============================================================================
+// simple random numbers
 
 inline float frand(float max=1.0)
 { return rand() / float(RAND_MAX) * max; }
@@ -60,6 +117,9 @@ inline int irand(int min, int max)
     return (i == max) ? max - 1 : i;
 }
 
+
+//=============================================================================
+// distributions
 
 // computes the log(normalPdf(x | u, s^2))
 inline float normallog(float x, float u, float s)
@@ -83,9 +143,8 @@ float normalvariate(float mu, float sigma);
 inline float expovariate(float lambda)
 { return -log(frand()) / lambda; }
 
-
-
 } // extern "C"
+
 
 template <class T>
 double variance(T *vals, int size)
@@ -185,126 +244,6 @@ private:
 
 
 
-// Find a root of a function func(x) using the secant method
-// x0 and x1 are initial estimates of the root
-template <class Func>
-float secantRoot(Func &f, float x0, float x1, int maxiter, 
-                 float minx=.000001, float esp=.002)
-{
-    float f0 = f(x0);
-    for (int i=0; i<maxiter; i++) {
-        if (fabs((x1 - x0)*2.0 / (x0+x1)) < esp)
-            return x0;
-        float f1 = f(x1);
-        float x2 = x1 - (x1 - x0) * f1 / (f1 - f0);
-        
-        x0 = x1;
-        x1 = (x2 > minx) ? x2 : minx;
-        f0 = f1;
-    }
-
-    return x1;
-}
-
-
-// Find a root of a function func(x) using the bisection method
-// This is less efficient but is more robust than Newton's or Secant
-// x0 and x1 are initial estimates of the root
-template <class Func>
-float bisectRoot(Func &f, float x0, float x1, const float err=.001)
-{
-    float f0 = f(x0);
-    float f1 = f(x1);
-    
-    while (fabs(x1 - x0) > 2 * err) {
-        //printf("in:  %f %f; %f %f\n", x0, x1, f0, f1);
-
-        float x2 = (x0 + x1) / 2.0;
-        float f2 = f(x2);
-        
-        if (f0 * f2 > 0) {
-            x0 = x2;
-            f0 = f2;
-        } else {
-            x1 = x2;
-            f1 = f2;
-        }
-    }
-
-    return (x0 + x1) / 2.0;
-}
-
-
-// computes log(a + b) given log(a) and log(b)
-inline double logadd(double lna, double lnb)
-{
-    double diff = lna - lnb;
-    if (lna == 1.0)
-        return lnb;
-    if (lnb == 1.0)
-        return lna;
-    if (diff < 500.0)
-        return log(exp(diff) + 1.0) + lnb;
-    else
-        return lna;
-}
-
-void invertPerm(int *perm, int *inv, int size);
-
-template <class T>
-void permute(T* array, int *perm, int size)
-{
-    T *tmp = new T [size];
-    
-    // transfer permutation to temp array
-    for (int i=0; i<size; i++)
-        tmp[i] = array[perm[i]];
-    
-    // copy permutation back to original array
-    for (int i=0; i<size; i++)
-        array[i] = tmp[i];
-
-    delete [] tmp;
-}
-
-template <class T>
-T ipow(T val, int expo)
-{
-    T result = 1.0;
-    unsigned int e = expo;
-
-    if ((int)e < 0) {
-	e = -e;
-	val = 1.0 / val;
-    }
-
-    while (true) {
-	if (e & 1)
-	    result *= val;
-	if ((e >>= 1) == 0)
-	    break;
-	val *= val;
-    }
-
-    return result;
-}
-
-
-int choose(int n, int k);
-
-double fchoose(int n, int k);
-
-
-template <class T>
-int findval(T *array, int size, const T &val)
-{
-    for (int i=0; i<size; i++)
-        if (array[i] == val)
-            return i;
-    return -1;
-}
-
-
 //=============================================================================
 // sorting
 
@@ -327,8 +266,27 @@ void ranksort(KeyType *keys, ValueType *values, int size)
 }
 
 
+void invertPerm(int *perm, int *inv, int size);
+
+template <class T>
+void permute(T* array, int *perm, int size)
+{
+    T *tmp = new T [size];
+    
+    // transfer permutation to temp array
+    for (int i=0; i<size; i++)
+        tmp[i] = array[perm[i]];
+    
+    // copy permutation back to original array
+    for (int i=0; i<size; i++)
+        array[i] = tmp[i];
+
+    delete [] tmp;
+}
+
+
 //=============================================================================
-// input/output
+// simple input/output
 
 void printIntArray(int *array, int size);
 void printFloatArray(float *array, int size);

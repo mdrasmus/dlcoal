@@ -22,17 +22,16 @@ if dlcoal.dlcoalc:
 
     export(dlcoal.dlcoalc, "calcDoomTable", c_int,
            [c_void_p, "tree", c_float, "birth", c_float, "death",
-            c_int, "maxdoom", c_double_p, "doomtable"])
+            c_double_p, "doomtable"])
     
     export(dlcoal.dlcoalc, "birthDeathTreePriorFull", c_double,
            [c_void_p, "tree", c_void_p, "stree",
             c_int_p, "recon", c_int_p, "events",
             c_float, "birth", c_float, "death",
-            c_double_p, "doomtable", c_int, "maxdoom"])
+            c_double_p, "doomtable"])
 
 
-def prob_dup_loss(tree, stree, recon, events, duprate, lossrate,
-                  maxdoom=20):
+def prob_dup_loss(tree, stree, recon, events, duprate, lossrate):
     """Returns the topology prior of a gene tree"""
 
     if dlcoal.dlcoalc:
@@ -48,12 +47,12 @@ def prob_dup_loss(tree, stree, recon, events, duprate, lossrate,
         events2 = dlcoal.make_events_array(nodes, events)
 
         doomtable = c_list(c_double, [0] * len(stree.nodes))
-        dlcoal.dlcoalc.calcDoomTable(cstree, duprate, lossrate, maxdoom, doomtable)
+        dlcoal.dlcoalc.calcDoomTable(cstree, duprate, lossrate, doomtable)
 
         p = dlcoal.dlcoalc.birthDeathTreePriorFull(ctree, cstree,
                                     c_list(c_int, recon2), 
                                     c_list(c_int, events2),
-                                    duprate, lossrate, doomtable, maxdoom)
+                                    duprate, lossrate, doomtable)
         dlcoal.dlcoalc.deleteTree(ctree)
         dlcoal.dlcoalc.deleteTree(cstree)
 
@@ -69,7 +68,7 @@ def prob_dup_loss(tree, stree, recon, events, duprate, lossrate,
             
         return topology_prior.dup_loss_topology_prior(
             tree, stree, recon, duprate, lossrate,
-            maxdoom=maxdoom, events=events)
+            events=events)
 
 
 def sample_dup_times(tree, stree, recon, birth, death,

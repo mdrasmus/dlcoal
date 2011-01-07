@@ -16,7 +16,7 @@ def dlcoal_recon(tree, stree, gene2species,
                  n, duprate, lossrate,
                  pretime=None, premean=None,
                  nsearch=1000,
-                 maxdoom=20, nsamples=100, nprescreen=20,
+                 nsamples=100, nprescreen=20,
                  search=None,
                  log=sys.stdout):
     """
@@ -41,7 +41,7 @@ def dlcoal_recon(tree, stree, gene2species,
     reconer = DLCoalRecon(tree, stree, gene2species,
                           n, duprate, lossrate,
                           pretime=pretime, premean=premean,
-                          maxdoom=maxdoom, nsamples=nsamples, log=log)
+                          nsamples=nsamples, log=log)
     reconer.set_proposer(DLCoalReconProposer(
         tree, stree, gene2species, search=search))
     return reconer.recon(nsearch).get_dict()
@@ -53,7 +53,7 @@ class DLCoalRecon (object):
     def __init__(self, tree, stree, gene2species,
                  n, duprate, lossrate,
                  pretime=None, premean=None,
-                 maxdoom=20, nsamples=100,
+                 nsamples=100,
                  name_internal="n", log=sys.stdout):
 
         # init coal tree
@@ -65,7 +65,6 @@ class DLCoalRecon (object):
         self.lossrate = lossrate
         self.pretime = pretime
         self.premean = premean
-        self.maxdoom = maxdoom
         self.nsamples = nsamples
         self.name_internal = name_internal
         self.log_stream = log
@@ -132,7 +131,6 @@ class DLCoalRecon (object):
                                               self.stree, self.n,
                                               self.duprate, self.lossrate,
                                               self.pretime, self.premean,
-                                              maxdoom=self.maxdoom,
                                               nsamples=self.nsamples,
                                               add_spec=False,
                                               info=info)
@@ -388,8 +386,6 @@ class DLCoalTreeSearch (phylo.TreeSearch):
 
     def prescreen(self, tree):
 
-        maxdoom = 10
-
         recon = phylo.reconcile(tree, self.stree, self.gene2species)
         events = phylo.label_events(tree, recon)
 
@@ -398,6 +394,6 @@ class DLCoalTreeSearch (phylo.TreeSearch):
         
         return duploss.prob_dup_loss(
             tree, self.stree, recon, events,
-            self.duprate, self.lossrate, maxdoom=maxdoom)
+            self.duprate, self.lossrate)
 
     

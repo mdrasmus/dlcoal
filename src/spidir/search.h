@@ -229,7 +229,6 @@ protected:
     float dupprob;
     float lossprob;
     double *doomtable;
-    const static int maxdoom = 10;
     TreeSet uniques;
 
     ExtendArray<int> recon;

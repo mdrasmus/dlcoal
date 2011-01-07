@@ -14,7 +14,7 @@ from compbio import birthdeath, phylo
 import spidir
 
 
-def calc_doom_table(tree, birth, death, maxdoom, nodelookup=None):
+def calc_doom_table(tree, birth, death, maxdoom=20, nodelookup=None):
     """Compute a doom table for a species tree 'tree'"""
     
     if nodelookup is None:
@@ -100,7 +100,7 @@ def get_sub_tree(node, snode, recon, events):
     return leaves
     
 
-def dup_loss_topology_prior(tree, stree, recon, birth, death, maxdoom,
+def dup_loss_topology_prior(tree, stree, recon, birth, death, maxdoom=20,
                             events=None):
     """
     Returns the log prior of a gene tree topology according to dup-loss model
