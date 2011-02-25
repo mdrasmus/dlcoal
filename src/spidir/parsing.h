@@ -1,15 +1,15 @@
-#ifndef SPIDIR_PARSING_H
-#define SPIDIR_PARSING_H
-
 /*=============================================================================
 
-    SPIDIR - SPecies Informed DIstanced-based Reconstruction
-    
-    Matt Rasmussen
-    Thu Nov 18 12:35:12 EST 2010
+  Matt Rasmussen
+  Copyright 2007-2011
 
+  General parsing functions
 
 =============================================================================*/
+
+
+#ifndef SPIDIR_PARSING_H
+#define SPIDIR_PARSING_H
 
 // headers c++ 
 #include <stdlib.h>

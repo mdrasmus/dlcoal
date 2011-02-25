@@ -1,3 +1,13 @@
+/*=============================================================================
+
+  Matt Rasmussen
+  Copyright 2007-2011
+
+  Gene trees, species trees, reconciliations
+
+=============================================================================*/
+
+
 #ifndef SPIDIR_PHYLOGENY_H
 #define SPIDIR_PHYLOGENY_H
 

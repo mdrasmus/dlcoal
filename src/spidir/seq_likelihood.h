@@ -1,3 +1,14 @@
+/*=============================================================================
+
+  Matt Rasmussen
+  Copyright 2007-2011
+
+  Computing sequence likelihood
+  Maximum Likelihood Branch Length Estimation
+
+=============================================================================*/
+
+
 #ifndef SPIDIR_SEQ_LIKELIHOOD_H
 #define SPIDIR_SEQ_LIKELIHOOD_H
 

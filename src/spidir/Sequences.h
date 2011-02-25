@@ -1,3 +1,12 @@
+/*=============================================================================
+
+  Matt Rasmussen
+  Copyright 2010-2011
+
+  Molecular sequence input/output 
+
+=============================================================================*/
+
 #ifndef SPIDIR_SEQUENCES_H
 #define SPIDIR_SEQUENCES_H
 

@@ -19,7 +19,7 @@
 #include "Matrix.h"
 #include "ConfigParam.h"
 #include "Sequences.h"
-#include "spidir.h"
+#include "model_params.h"
 
 
 

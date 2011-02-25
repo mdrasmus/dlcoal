@@ -1,15 +1,15 @@
-#ifndef SPIDIR_LOGGING_H
-#define SPIDIR_LOGGING_H
-
 /*=============================================================================
 
-    SPIDIR - SPecies Informed DIstanced-based Reconstruction
-    
-    Matt Rasmussen
-    Wed Jun 13 22:09:24 EDT 2007
+  Matt Rasmussen
+  Copyright 2007-2011
 
+  Logging functions
 
 =============================================================================*/
+
+
+#ifndef SPIDIR_LOGGING_H
+#define SPIDIR_LOGGING_H
 
 // c/c++ includes
 #include <sys/time.h>

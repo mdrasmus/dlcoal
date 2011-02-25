@@ -1,6 +1,14 @@
+/*=============================================================================
+
+  Matt Rasmussen
+  Copyright 2010-2011
+
+  Molecular sequence input/output 
+
+=============================================================================*/
 
 // spidir headers
-#include "spidir.h"
+#include "seq.h"
 #include "Sequences.h"
 #include "parsing.h"
 
@@ -128,6 +136,8 @@ void resampleAlign(Sequences *aln, Sequences *aln2)
         }
     }
 }
+
+
 
 
 } // namespace spidir

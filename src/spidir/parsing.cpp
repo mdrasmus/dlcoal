@@ -1,10 +1,9 @@
 /*=============================================================================
 
-    SPIDIR - SPecies Informed DIstanced-based Reconstruction
-    
-    Matt Rasmussen
-    Thu Nov 18 12:36:40 EST 2010
+  Matt Rasmussen
+  Copyright 2007-2011
 
+  General parsing functions
 
 =============================================================================*/
 

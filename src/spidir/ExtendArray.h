@@ -1,3 +1,13 @@
+/*=============================================================================
+
+  Matt Rasmussen
+  Copyright 2007-2011
+
+  Simple vector/array class
+
+=============================================================================*/
+
+
 #ifndef SPIDIR_EXTEND_ARRAY_H
 #define SPIDIR_EXTEND_ARRAY_H
 

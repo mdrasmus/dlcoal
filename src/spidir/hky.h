@@ -1,7 +1,16 @@
+/*=============================================================================
+
+  Matt Rasmussen
+  Copyright 2007-2011
+
+  HKY sequence model
+
+=============================================================================*/
+
+
 #ifndef SPIDIR_HKY_H
 #define SPIDIR_HKY_H
 
-#include "spidir.h"
 #include "assert.h"
 #include "math.h"
 

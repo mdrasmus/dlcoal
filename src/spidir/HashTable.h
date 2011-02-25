@@ -1,8 +1,10 @@
 /***************************************************************************
-* Summon
-* Matt Rasmussen
-* HashTable.h
-*
+
+  Matt Rasmussen
+  Copyright 2005-2011
+
+  General hash table class
+
 ***************************************************************************/
 
 #ifndef SPIDIR_HASH_TABLE_H

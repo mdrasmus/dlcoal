@@ -1,15 +1,15 @@
-#ifndef SPIDIR_COMMON_H
-#define SPIDIR_COMMON_H
-
 /*=============================================================================
 
-    SPIDIR - SPecies Informed DIstanced-based Reconstruction
-    
-    Matt Rasmussen
-    Wed Jun 13 22:09:24 EDT 2007
+  Matt Rasmussen
+  Copyright 2007-2011
 
+  Common miscellaneous functions
 
 =============================================================================*/
+
+
+#ifndef SPIDIR_COMMON_H
+#define SPIDIR_COMMON_H
 
 // headers c++ 
 #include <stdlib.h>

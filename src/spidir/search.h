@@ -1,8 +1,17 @@
+/*=============================================================================
+
+  Matt Rasmussen
+  Copyright 2007-2011
+
+  Gene tree search functions
+
+=============================================================================*/
+
 
 #ifndef SPIDIR_SEARCH_H
 #define SPIDIR_SEARCH_H
 
-#include "spidir.h"
+#include "model_params.h"
 #include "newick.h"
 #include <set>
 

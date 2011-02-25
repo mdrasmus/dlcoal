@@ -1,8 +1,18 @@
+/*=============================================================================
+
+  Matt Rasmussen
+  Copyright 2010-2011
+
+  Branch length prior of the SPIMAP model
+
+=============================================================================*/
+
+
 #ifndef SPIDIR_BRANCH_PRIOR_H
 #define SPIDIR_BRANCH_PRIOR_H
 
 #include "Tree.h"
-#include "spidir.h"
+#include "model_params.h"
 #include "birthdeath.h"
 
 namespace spidir {

@@ -3,7 +3,7 @@
     SPIMAP - Speices Informed Max A Posteriori Phylogenetic Reconstruction
 
     Matt Rasmussen
-    Copyright 2010
+    Copyright 2010-2011
 
 =============================================================================*/
 
@@ -23,22 +23,29 @@
 #include "ConfigParam.h"
 #include "logging.h"
 #include "Matrix.h"
+#include "model_params.h"
 #include "newick.h"
 #include "parsimony.h"
 #include "parsing.h"
 #include "phylogeny.h"
 #include "search.h"
+#include "seq.h"
 #include "seq_likelihood.h"
 #include "Sequences.h"
-#include "spidir.h"
 #include "treevis.h"
 
 
+#define VERSION_TEXT "1.1"
 #define VERSION_INFO  "\
-SPIMAP 2010 \n\
+SPIMAP " VERSION_TEXT " \n\
 SPecies Informed Max A Posteriori gene tree reconstruction \n\
-Matt Rasmussen \n\
+Matt Rasmussen 2010-2011\n\
 CSAIL, MIT \n\
+\n\
+Citation:\n\
+A Bayesian Approach for Fast and Accurate Gene Tree Reconstruction.\n\
+Matthew D. Rasmussen and Manolis Kellis.\n\
+Molecular Biology and Evolution. 2010.\n\
 "
 
 

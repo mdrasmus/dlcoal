@@ -1,6 +1,16 @@
+/*=============================================================================
+
+  Matt Rasmussen
+  Copyright 2007-2011
+
+  HKY sequence model
+
+=============================================================================*/
+
 
 #include "hky.h"
 #include "common.h"
+#include "seq.h"
 
 namespace spidir {
 

@@ -1,5 +1,11 @@
-//=============================================================================
-// Parsimony algorithm
+/*=============================================================================
+
+  Matt Rasmussen
+  Copyright 2007-2011
+
+  Parsimony phylogeny algorithm
+
+=============================================================================*/
 
 // c++ headers
 #include <assert.h>
@@ -10,7 +16,7 @@
 
 // spidir headers
 #include "common.h"
-#include "spidir.h"
+#include "seq.h"
 #include "parsimony.h"
 #include "Tree.h"
 

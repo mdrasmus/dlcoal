@@ -1,3 +1,11 @@
+/*=============================================================================
+
+  Matt Rasmussen
+  Copyright 2010-2011
+
+  Estimating birth-death rates from gene counts (implementing Hahn et al 2005)
+
+=============================================================================*/
 
 // c/c++ includes
 #include <math.h>

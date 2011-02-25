@@ -1,10 +1,9 @@
 /*=============================================================================
 
-    SPIDIR    
-    Parameter Estimation (Training)
-    
-    train.cpp
-    started: Fri Mar 27 14:22:58 EDT 2009
+  Matt Rasmussen
+  Copyright 2007-2011
+
+  Train parameters of branch length prior in SPIMAP model
 
 =============================================================================*/
 
@@ -22,7 +21,6 @@
 #include "Matrix.h"
 #include "parsimony.h"
 #include "seq_likelihood.h"
-#include "spidir.h"
 #include "Tree.h"
 
 
