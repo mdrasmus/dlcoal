@@ -90,9 +90,15 @@ class DLCoalRecon (object):
         for i in xrange(nsearch):
             if i % 10 == 0:
                 print "search", i
+
+            util.tic("eval")
             p = self.eval_proposal(proposal)
+            util.toc()
+
+            util.tic("prop")
             self.eval_search(p, proposal)
             proposal = self.proposer.next_proposal()
+            util.toc()
         
         # rename locus tree nodes
         dlcoal.rename_nodes(self.maxrecon.locus_tree, self.name_internal)
@@ -122,6 +128,16 @@ class DLCoalRecon (object):
         #util.tic("eval")
         # compute recon probability
         info = {}
+
+        # DEBUG
+        counts = coal.count_lineages_per_branch(self.coal_tree,
+                                                proposal.coal_recon,
+                                                proposal.locus_tree)
+        maxcount = max(x[0] for x in counts.values())
+        util.logger("max lineage count %d" % maxcount)
+        if maxcount > 10:
+            return -util.INF
+        
         p = dlcoal.prob_dlcoal_recon_topology(self.coal_tree,
                                               proposal.coal_recon,
                                               proposal.locus_tree,
@@ -196,6 +212,9 @@ class DLCoalReconProposer (object):
 
 
     def next_proposal(self):
+
+        if len(self._locus_search.get_tree().leaves()) <= 2:
+            return self._recon
         
         if self._i_coal_recons >= self._num_coal_recons:
             # propose new locus_tree
@@ -258,22 +277,8 @@ class DLCoalReconProposer (object):
 
     def _propose_daughters(self, coal_tree, coal_recon,
                            locus_tree, locus_recon, locus_events):
-        
-        lineages = coal.count_lineages_per_branch(
-            coal_tree, coal_recon, locus_tree)
-        daughters = set()
-        
-        for node, event in locus_events.iteritems():
-            if event == "dup":
-                # choose one of the children of node to be a daughter
-                children = [child for child in node.children
-                            if lineages[child][1] == 1]
-                if len(children) > 0:
-                    daughters.add(children[stats.sample([1] * len(children))])
-
-        
-        return daughters
-
+        return propose_daughters(coal_tree, coal_recon,
+                                 locus_tree, locus_events)
 
     def accept(self):
         self._accept_locus = True
@@ -281,6 +286,24 @@ class DLCoalReconProposer (object):
 
     def reject(self):
         pass
+
+
+def propose_daughters(coal_tree, coal_recon, locus_tree, locus_events):
+
+    lineages = coal.count_lineages_per_branch(
+        coal_tree, coal_recon, locus_tree)
+    daughters = set()
+
+    for node, event in locus_events.iteritems():
+        if event == "dup":
+            # choose one of the children of node to be a daughter
+            children = [child for child in node.children
+                        if lineages[child][1] == 1]
+            if len(children) > 0:
+                daughters.add(children[stats.sample([1] * len(children))])
+
+    return daughters
+
 
 
 class Recon (object):
@@ -375,8 +398,6 @@ class DLCoalTreeSearch (phylo.TreeSearch):
 
     def propose(self):
         self.search.propose()
-        #util.logger(self.search.search.node1, self.search.search.node2,
-        #            self.search.search.child) 
         return self.tree
         
     def revert(self):

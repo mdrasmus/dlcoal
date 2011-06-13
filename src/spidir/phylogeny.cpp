@@ -344,7 +344,7 @@ int addImpliedSpecNodes(Tree *tree, Tree *stree,
 // NOTE: this function adds back distance
 void removeImpliedSpecNodes(Tree *tree, int addedNodes)
 {
-    int nnodes = tree->nnodes;
+    const int nnodes = tree->nnodes;
 
     // remove nodes from end of node list
     for (int i=nnodes-1; i>=nnodes-addedNodes; i--)

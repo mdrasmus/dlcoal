@@ -29,8 +29,6 @@ o.add_option("-s", "--stree", dest="stree", metavar="SPECIES_TREE")
 o.add_option("-S", "--smap", dest="smap", metavar="GENE_TO_SPECIES_MAP")
 o.add_option("-n", "--popsize", dest="popsize", metavar="POPULATION_SIZE",
              type="float")
-o.add_option("", "--popsizes", dest="popsizes",
-             metavar="POPULATION_SIZE_FILE")
 o.add_option("-D", "--duprate", dest="duprate", metavar="DUPLICATION_RATE",
              type="float")
 o.add_option("-L", "--lossrate", dest="lossrate", metavar="LOSS_RATE",
@@ -42,7 +40,7 @@ o.add_option("-i", "--iter", dest="iter", metavar="ITERATIONS",
 o.add_option("-I", "--inext", dest="inext", metavar="INPUT_EXT",
              default="")
 o.add_option("-O", "--outext", dest="outext", metavar="OUTPUT_EXT",
-             default="dlcoal")
+             default=".dlcoal")
 o.add_option("-l", "--log", dest="log", metavar="LOG_FILE")
 
 
@@ -62,6 +60,13 @@ if len(args) == 0:
     o.print_help()
     sys.exit(1)
 
+#=============================================================================
+
+def check_tree(tree, name=""):
+
+    for node in tree:
+        if len(node.children) not in (0, 2):
+            raise Exception("tree is not binary: %s" % name)
 
 
 #=============================================================================
@@ -69,29 +74,31 @@ if len(args) == 0:
 treefile = args[0]
 stree = treelib.read_tree(conf.stree)
 smap = phylo.read_gene2species(conf.smap)
-coal_tree = treelib.read_tree(treefile)
 
 # convert species tree into generations
-for node in stree:
-    node.dist *= 1e6 / conf.gentime
-duprate = conf.duprate / (1e6 / conf.gentime)
-lossrate = conf.lossrate / (1e6 / conf.gentime)
-times = treelib.get_tree_timestamps(stree)
+#for node in stree:
+#    node.dist *= 1e6 / conf.gentime
+#duprate = conf.duprate / (1e6 / conf.gentime)
+#lossrate = conf.lossrate / (1e6 / conf.gentime)
+#times = treelib.get_tree_timestamps(stree)
 
-# remove bootstraps if they exist
-for node in coal_tree:
-    if "boot" in node.data:
-        del node.data["boot"]
-coal_tree.default_data.clear()
+#for node in stree:
+#    node.dist *= 1e6 / conf.gentime
+duprate = conf.duprate# / (1e6 / conf.gentime)
+lossrate = conf.lossrate# / (1e6 / conf.gentime)
+times = treelib.get_tree_timestamps(stree)
 
 
 # get popsizes
 #  NOTE: popsize is multiplied by 2 to account for diploid species
-if conf.popsizes:
-    poptree = treelib.read_tree(conf.popsizes)
-    popsizes = dict((node.name, node.dist) for node in poptree)
+if conf.popsize is None:
+    # scale popsizes by generation time
+    popsizes = {}
+    for node in stree:
+        popsizes[node.name] = (2 * float(node.data["pop"]) *
+                               float(node.data["g"]) / 1e6)
 else:
-    popsizes = 2 * conf.popsize
+    popsizes = 2 * conf.popsize * conf.gentime / 1e6
 
 
 # start logging
@@ -110,6 +117,64 @@ if dlcoal.dlcoalc:
 log_out.write("seed: %d\n" % conf.seed)
 
 
+# read and prepare coal_tree
+coal_trees = list(treelib.iter_trees(treefile))
+locus_trees = []
+
+for coal_tree in coal_trees:
+    check_tree(coal_tree, treefile)
+
+    # remove bootstraps if they exist
+    for node in coal_tree:
+        if "boot" in node.data:
+            del node.data["boot"]
+    coal_tree.default_data.clear()
+
+
+    # perform reconciliation
+    maxrecon = dlcoal.recon.dlcoal_recon(
+        coal_tree, stree, smap, popsizes, duprate, lossrate,
+        premean=.5 * times[stree.root],
+        nsamples=conf.nsamples, nprescreen=conf.nprescreen,
+        nsearch=conf.iter, log=log_out)
+    locus_trees.append(maxrecon["locus_tree"])
+
+
+# make "consensus" reconciliation if multiple coal trees given
+if len(coal_trees) > 1:
+    # make consensus locus tree
+    coal_tree = phylo.consensus_majority_rule(coal_trees, rooted=True)
+    phylo.ensure_binary_tree(coal_tree)
+    locus_tree = phylo.consensus_majority_rule(locus_trees, rooted=True)
+    phylo.ensure_binary_tree(locus_tree)
+    locus_recon = phylo.reconcile(locus_tree, stree, smap)
+    maxrecon = {
+        "coal_recon": phylo.reconcile(coal_tree, locus_tree, lambda x:x),
+        "locus_tree": locus_tree,
+        "locus_recon": locus_recon,
+        "locus_events": phylo.label_events(locus_tree, locus_recon)}
+    maxrecon["daughters"] = dlcoal.recon.propose_daughters(
+        coal_tree, maxrecon["coal_recon"], locus_tree,
+        maxrecon["locus_events"])
+
+
+# write outputs
+out = util.replace_ext(treefile, conf.inext, conf.outext)
+dlcoal.write_dlcoal_recon(out, coal_tree, maxrecon)
+
+
+
+'''
+coal_tree = treelib.read_tree(treefile)
+check_tree(coal_tree, treefile)
+
+# remove bootstraps if they exist
+for node in coal_tree:
+    if "boot" in node.data:
+        del node.data["boot"]
+coal_tree.default_data.clear()
+
+
 # perform reconciliation
 maxrecon = dlcoal.recon.dlcoal_recon(
     coal_tree, stree, smap, popsizes, duprate, lossrate,
@@ -120,3 +185,4 @@ maxrecon = dlcoal.recon.dlcoal_recon(
 # write outputs
 out = util.replace_ext(treefile, conf.inext, conf.outext)
 dlcoal.write_dlcoal_recon(out, coal_tree, maxrecon)
+'''

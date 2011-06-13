@@ -147,17 +147,10 @@ def sample_dup_times_subtree(times, start_time, time_span, duproot,
     def walk(dup, parent_time):
         remain = time_span - (start_time - parent_time)
 
-        while True:
-            t = birthdeath.sample_birth_wait_time(1, remain,
-                                                  birth, death)
-            times[dup] = parent_time - t
-            assert t >= 0.0
-            
-            if times[dup] != parent_time:
-                break
-            else:
-                print t, remain, dup.parent
-
+        #while True:
+        t = birthdeath.sample_birth_wait_time(1, remain, birth, death)
+        times[dup] = parent_time - t
+        
         snode = recon[dup]
         for child in dup.children:
             if events[child] == "dup" and recon[child] == snode:

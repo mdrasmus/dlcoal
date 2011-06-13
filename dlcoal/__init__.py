@@ -137,7 +137,6 @@ def prob_locus_coal_recon_topology_samples(
                 premean,
                 events=locus_events)
         treelib.set_dists_from_timestamps(locus_tree, locus_times)
-        #treelib.draw_tree(locus_tree, scale=.0000001)
 
         # use C code
         return coal.prob_locus_coal_recon_topology_samples(

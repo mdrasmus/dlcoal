@@ -18,6 +18,12 @@ namespace dlcoal
 extern "C" {
 
 
+//=============================================================================
+// Data structures
+
+
+// Records the number of gene lineages present at the bottom (start) of a 
+// species branch and the number at the top (end).
 class LineageCounts
 {
 public:
@@ -36,6 +42,7 @@ public:
 };
 
 
+// Records commonly used terms related to the gene tree topology
 class TopStats
 {
 public:
@@ -56,6 +63,11 @@ public:
 };
 
 
+// Records a dynamic programing table for the probability of a number of 
+// gene lineages at various locations in the species tree.
+//
+// starts[v][k] = P(a(v)=k | n, S, N)
+// ends[v][k]   = P(b(v)=k | n, S, N)
 class ProbCounts
 {
 public:
@@ -371,6 +383,8 @@ void calc_prob_counts_table(ProbCounts *prob_counts,
             // fixed end time
             const double t = ptime - stimes[snode];
 
+            // TODO: there is a lot of work that could be reused between
+            // iterations of these loops
             end[0] = 0.0;
             for (int k=1; k<=M; k++) {
                 end[k] = 0.0;
@@ -383,7 +397,10 @@ void calc_prob_counts_table(ProbCounts *prob_counts,
         prob_counts->ends[snode] = end;
     }
 
+    // clean up
     delete [] sizes;
+    delete [] stack;
+    delete [] stack_pushes;
 }
 
 
@@ -466,14 +483,16 @@ double prob_locus_coal_recon_topology(int *ptree, int nnodes, int *recon,
     }
 
 
-     // deallocates 'forward tree'
+     // deallocates 'int tree'
     if (own_iltree)
         free_itree(iltree);
     free_itree(itree);
 
+    // clean up
     delete [] stack;
     delete [] gene_counts;
     delete [] subleaves;
+    delete [] daughters_set;
 
 
     return lnp;
@@ -504,15 +523,15 @@ void sample_dup_times_subtree(double *times, intnode *itree,
         const double remain = time_span - (start_time - parent_time);
 
         if (remain <= 0.0) {
-            printf("node %d %e %e %e\n", node, 
-                   time_span, start_time, parent_time);
-            assert(false);
+            // force dup t=0.  This should rarely happen
+            times[node] = parent_time;
+        } else {
+            double t;
+            do {
+                t = sampleBirthWaitTime1(remain, birth, death);
+                times[node] = parent_time - t;
+            } while (times[node] == parent_time);
         }
-        double t;
-        do {
-            t = sampleBirthWaitTime1(remain, birth, death);
-            times[node] = parent_time - t;
-        } while (times[node] == parent_time);
 
         const int snode = recon[node];
         for (int i=0; i<2; i++) {
