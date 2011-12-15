@@ -349,6 +349,54 @@ tree).
 </div>
 
 
+<!-- ====================================================================== -->
+<a name="sec-file-rel"></a>
+<h3>Gene relationship file format (*.rel.txt)</h3>
+
+<p>
+After reconciling a gene tree, the <tt>tree-relations</tt> program can be
+used to determine the relationship (i.e. orthology, paralogy, etc) between
+genes in a gene family.  These relationships are stored in a special
+file format called a <em>relations file</em>.
+</p>
+
+
+<a name="fig-recon"></a>
+<div class="figure">
+
+<div class="code"><pre>
+100.yeast.tree	gene	YER061C
+100.yeast.tree	gene	spar_6281
+100.yeast.tree	gene	smik_6662
+100.yeast.tree	gene	sbay_7039
+100.yeast.tree	gene	smik_6659
+100.yeast.tree	gene	sbay_7037
+100.yeast.tree	gene	CAGL0J02970g
+100.yeast.tree	gene	scas_g715.48
+100.yeast.tree	gene	kwal_5828
+100.yeast.tree	gene	ADL072C
+100.yeast.tree	gene	KLLA0C08239g
+100.yeast.tree	spec	sbay_7037	smik_6659	n5
+100.yeast.tree	spec	YER061C,spar_6281	smik_6662	n6
+100.yeast.tree	spec	YER061C	spar_6281	n7
+100.yeast.tree	dup	YER061C,sbay_7039,smik_6662,spar_6281	sbay_7037,smik_6659	5
+100.yeast.tree	spec	ADL072C,KLLA0C08239g,kwal_5828	CAGL0J02970g,YER061C,sbay_7037,sbay_7039,scas_g715.48,smik_6659,smik_6662,spar_6281	n2
+100.yeast.tree	spec	ADL072C,KLLA0C08239g	kwal_5828	n8
+100.yeast.tree	spec	ADL072C	KLLA0C08239g	n9
+100.yeast.tree	spec	CAGL0J02970g,YER061C,sbay_7037,sbay_7039,smik_6659,smik_6662,spar_6281	scas_g715.48	n3
+100.yeast.tree	spec	CAGL0J02970g	YER061C,sbay_7037,sbay_7039,smik_6659,smik_6662,spar_6281	n4
+100.yeast.tree	spec	YER061C,smik_6662,spar_6281	sbay_7039	n5
+100.yeast.tree	loss	smik_6659	n7
+</pre></div>
+
+
+<img src="figures/gene-tree.png">
+
+<div class="figcaption">
+<span class="figtitle">Figure: Example relations *.rel.txt file.</span>
+</div>
+</div>
+
 
 
 </body>

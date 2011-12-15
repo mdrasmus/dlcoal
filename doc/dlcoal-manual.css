@@ -57,10 +57,10 @@ h3, h4, h5 {
   font-family: monospace;
   border: #ccc solid 1px;
   background-color: #eef;
-  padding:5px;
-  /* width:80%; */
+  padding: 5px;
   margin: 20px;
   text-align: left;
+  overflow: auto;
 }
 
 
