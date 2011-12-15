@@ -25,6 +25,7 @@ body > h2 {
   border-bottom: 1px #ccc solid;
   background-color: #eee;
   padding-left: 5px;
+  text-shadow: 1px 1px 0px #fff;
 }
 
 h3, h4, h5 {
@@ -57,10 +58,9 @@ h3, h4, h5 {
   font-family: monospace;
   border: #ccc solid 1px;
   background-color: #eef;
-  padding: 5px;
+  padding:5px;
   margin: 20px;
   text-align: left;
-  overflow: auto;
 }
 
 
