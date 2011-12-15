@@ -61,6 +61,7 @@ h3, h4, h5 {
   padding:5px;
   margin: 20px;
   text-align: left;
+  overflow: auto;
 }
 
 
