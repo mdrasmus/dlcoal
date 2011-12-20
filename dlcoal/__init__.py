@@ -42,6 +42,27 @@ from . import coal, duploss, sim
 
 
 #=============================================================================
+# constants
+
+PROGRAM_NAME = u"DLCoal"
+PROGRAM_VERSION_MAJOR = 1
+PROGRAM_VERSION_MINOR = 0
+PROGRAM_VERSION_RELEASE = 0
+PROGRAM_VERSION = (PROGRAM_VERSION_MAJOR,
+                   PROGRAM_VERSION_MINOR,
+                   PROGRAM_VERSION_RELEASE)
+
+if PROGRAM_VERSION_RELEASE != 0:
+    PROGRAM_VERSION_TEXT = "%d.%d.%d" % (PROGRAM_VERSION_MAJOR,
+                                         PROGRAM_VERSION_MINOR,
+                                         PROGRAM_VERSION_RELEASE)
+else:
+    PROGRAM_VERSION_TEXT = "%d.%d" % (PROGRAM_VERSION_MAJOR,
+                                      PROGRAM_VERSION_MINOR)
+
+
+
+#=============================================================================
 # export c functions
 
 ex = Exporter(globals())
@@ -54,6 +75,21 @@ if dlcoalc:
     export(dlcoalc, "setTreeDists", c_void_p, [c_void_p, "tree",
                                               c_float_p, "dists"])
 
+
+
+#=============================================================================
+# miscellaneous
+
+class NullLog (object):
+
+    def __init__(self):
+        pass
+
+    def write(self, text):
+        pass
+
+    def flush(self):
+        pass
 
 
 
@@ -297,6 +333,8 @@ def read_log(filename):
     """Reads a DLCoal log"""
     stream = util.open_stream(filename)
     for line in stream:
+        if line.startswith("seed:"):
+            continue
         yield eval(line, {"inf": util.INF})
   
 

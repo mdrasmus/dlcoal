@@ -55,53 +55,37 @@ struct ParsimonyCell
 void parsimony_helper(Tree *tree, int nseqs, char **seqs, 
                       ParsimonyCell *table, int *postorder)
 {
+    // loop over internal nodes postorder
     for (int ii=nseqs; ii<tree->nnodes; ii++) {
         int i = postorder[ii];
         int left = tree->nodes[i]->children[0]->name;
         int right = tree->nodes[i]->children[1]->name;
         
-        // process this node
+        // loop over bases
         for (int a=0; a<4; a++) {
             int minleft = 0, minright = 0;
             float minleftcost = MAX_COST, minrightcost = MAX_COST;
             float leftsub = 0;
             float rightsub = 0;
-            //float leftmatch = 2;
-            //float rightmatch = 2;
-            
+
+            // loop over child bases
             for (int b=0; b<4; b++) {
                 float sub = subcost[a][b];
                 float leftcost = table[matind(4, left, b)].cost + sub;
                 float rightcost = table[matind(4, right, b)].cost + sub;
                 
                 // find min_b leftcost(b)
-                if (leftcost < minleftcost) // ||
-                    //                    (leftcost == minleftcost &&
-                    //                     frand() < (1.0/leftmatch)))
-                {
-                    //if (leftcost == minleftcost)
-                        //    leftmatch += 1;                    
-                    //else
-                        //    leftmatch = 2;
-
+                if (leftcost < minleftcost) {
                     minleftcost = leftcost;
                     minleft = b;
                     leftsub = sub;
                 }
                 
                 // find min_b rightcost(b)
-                if (rightcost < minrightcost) // ||
-                    // (rightcost == minrightcost && 
-                    //  frand() < (1.0/rightmatch)))
-                {
-                    //if (rightcost == minrightcost)
-                    //    rightmatch += 1;
-                    //else
-                    //    rightmatch = 2;
-
+                if (rightcost < minrightcost) {
                     minrightcost = rightcost;
                     minright = b;
-                    rightsub = sub;                    
+                    rightsub = sub;
                 }
             }
             
@@ -129,10 +113,33 @@ void getParsimonyCost(Tree *tree, Node *node, int base, ParsimonyCell *table)
         right->dist += table[matind(4, node->name, base)].rightcost;
         
         // recurse
-        getParsimonyCost(tree, left, table[matind(4, node->name, base)].leftbase, 
-                         table);
-        getParsimonyCost(tree, right, table[matind(4, node->name, base)].rightbase, 
-                         table);
+        getParsimonyCost(
+            tree, left, table[matind(4, node->name, base)].leftbase, table);
+        getParsimonyCost(
+            tree, right, table[matind(4, node->name, base)].rightbase, table);
+    }
+}
+
+
+void getParsimonySeq(Tree *tree, Node *node, int nseqs, char** aseqs2, int site,
+                     int base, ParsimonyCell *table)
+{
+    if (node->nchildren > 0) {
+        //assert(node->name >= nseqs);
+        //printf("%d %d %d, %c %c\n", 
+        //       node->name, nseqs, site, int2dna[base], 
+        //       aseqs2[node->name - nseqs][site]);
+        aseqs2[node->name - nseqs][site] = (char) int2dna[base];
+        
+        Node *left = node->children[0];
+        Node *right = node->children[1];
+        int k = matind(4, node->name, base);
+        
+        // recurse
+        getParsimonySeq(tree, left, nseqs, aseqs2, site, 
+                        table[k].leftbase, table);
+        getParsimonySeq(tree, right, nseqs, aseqs2, site,
+                        table[k].rightbase, table);
     }
 }
 
@@ -157,7 +164,7 @@ void getPostOrder(Tree *tree, ExtendArray<int> *order)
 
 
 void parsimony(Tree *tree, int nseqs, char **seqs,
-               bool buildAncestral, char **ancetralSeqs)
+               bool buildAncestral, char **ancestralSeqs)
 {
     int seqlen = strlen(seqs[0]);
     
@@ -176,10 +183,9 @@ void parsimony(Tree *tree, int nseqs, char **seqs,
     getPostOrder(tree, &postorder);
 
     
+    // loop over sites of alignment
     for (int i=0; i<seqlen; i++) {
-        // initialize leaves
-        // iterate just over the leaves
-        
+        // initialize leaves        
         for (int j=0; j<nseqs; j++) {
             int base = dna2int[(int) (unsigned char) seqs[j][i]];
             
@@ -204,7 +210,7 @@ void parsimony(Tree *tree, int nseqs, char **seqs,
         
         // find min cost at root
         float mincost = MAX_COST;
-        int minbase= 0;
+        int minbase = 0;
         int root = tree->root->name;
         
         for (int a=0; a<4; a++) {
@@ -216,6 +222,10 @@ void parsimony(Tree *tree, int nseqs, char **seqs,
         
         // add up dist
         getParsimonyCost(tree, tree->root, minbase, table);
+
+        if (buildAncestral)
+            getParsimonySeq(tree, tree->root, nseqs, ancestralSeqs, i,
+                            minbase, table);
         
         // add up ungapped chars
         for (int j=0; j<tree->nnodes; j++) {
@@ -247,9 +257,8 @@ extern "C" {
 void parsimony(int nnodes, int *ptree, int nseqs, char **seqs, 
                float *dists, bool buildAncestral, char **ancetralSeqs)
 {
-    int seqlen = strlen(seqs[0]);
-    
     // check seqs
+    //int seqlen = strlen(seqs[0]);    
     //assert(checkSequences(nseqs, seqlen, seqs));
     
     // create tree objects

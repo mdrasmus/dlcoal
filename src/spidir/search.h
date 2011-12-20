@@ -11,9 +11,9 @@
 #ifndef SPIDIR_SEARCH_H
 #define SPIDIR_SEARCH_H
 
-#include "model_params.h"
-#include "newick.h"
 #include <set>
+
+#include "model_params.h"
 
 
 namespace spidir {
@@ -330,95 +330,8 @@ public:
 
 
 
-
-class BranchLengthFitter
-{
-public:
-    BranchLengthFitter() : runtime(0.0) {}
-    virtual ~BranchLengthFitter() {}
-    virtual double findLengths(Tree *tree) {return 0.0;}
-
-    float runtime;
-};
-
-
-class HkyFitter : public BranchLengthFitter
-{
-public:
-    HkyFitter(int nseqs, int seqlen, char **seqs, 
-              float *bgfreq, float tsvratio, int maxiter, 
-              double minlen=0.0001, double maxlen=10.0);
-    virtual double findLengths(Tree *tree);
-
-    int nseqs;
-    int seqlen;
-    char **seqs;    
-    float *bgfreq;
-    float tsvratio;
-    int maxiter;
-    double minlen;
-    double maxlen;
-};
-
-
-
 //=============================================================================
 
-
-
-class Prior
-{
-public:
-    Prior() :
-        branch_runtime(0),
-        top_runtime(0)
-    {}
-    virtual ~Prior() {}
-    
-    virtual double branchPrior(Tree *tree) { return 0.0; }
-    virtual double topologyPrior(Tree *tree) { return 0.0; }
-
-    virtual SpeciesTree *getSpeciesTree() { return NULL; }
-    virtual int *getGene2species() { return NULL; }
-
-
-    float branch_runtime;
-    float top_runtime;
-};
-
-
-class SpidirPrior : public Prior
-{
-public:
-    SpidirPrior(int nnodes, SpeciesTree *stree, 
-		SpidirParams *params, 
-		int *gene2species,
-		float predupprob, float dupprob, float lossprob,
-		int nsample, bool approx, bool useBranchPrior);
-
-    virtual ~SpidirPrior();
-
-    virtual double branchPrior(Tree *tree);
-    virtual double topologyPrior(Tree *tree);
-
-    virtual SpeciesTree *getSpeciesTree() { return stree; }
-    virtual int *getGene2species() { return gene2species; }
-    
-protected:
-    int nnodes;
-    SpeciesTree *stree;
-    SpidirParams *params;
-    int *gene2species;
-    ExtendArray<int> recon;
-    ExtendArray<int> events;
-    float predupprob;
-    float dupprob;
-    float lossprob;
-    int nsamples;
-    bool approx;
-    bool useBranchPrior;
-    double *doomtable;
-};
 
 
 class SampleFunc
@@ -469,10 +382,7 @@ class TreeSearchClimb : public TreeSearch
 {
 public:
 
-    TreeSearchClimb(Prior *prior,
-		    TopologyProposer *proposer,
-		    BranchLengthFitter *fitter);
-
+    TreeSearchClimb(Model *model, TopologyProposer *proposer);
     virtual ~TreeSearchClimb();
 
     virtual Tree *search(Tree *initTree, 
@@ -480,9 +390,8 @@ public:
 			 int nseqs, int seqlen, char **seqs);
 
 protected:
-    Prior *prior;
+    Model *model;
     TopologyProposer *proposer;
-    BranchLengthFitter *fitter;
 
 };
 
@@ -495,15 +404,11 @@ Tree *getInitialTree(string *genes, int nseqs, int seqlen, char **seqs);
 
 
 
-
-Tree *searchMCMC(Tree *initTree, 
-                 string *genes, int nseqs, int seqlen, char **seqs,
-                 SampleFunc *samples,
-                 Prior *lkfunc,
-                 TopologyProposer *proposer,
-                 BranchLengthFitter *fitter);
-
-
 } // namespace spidir
 
+
 #endif // SPIDIR_SEARCH_H
+
+
+
+

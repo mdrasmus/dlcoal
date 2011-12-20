@@ -85,7 +85,7 @@ void displayNode(Matrix<char> &matrix, Node *node, int *xpt, int* ypt)
 }
 
 
-int treeLayout(Node *node, ExtendArray<int> &xpt, ExtendArray<int> &ypt,
+int treeLayout(Node *node, int *xpt, int *ypt,
                float xscale, int yscale, int y=0)
 {
     if (node->parent == NULL) {
@@ -110,6 +110,20 @@ int treeLayout(Node *node, ExtendArray<int> &xpt, ExtendArray<int> &ypt,
 }
 
 
+// find maximum width of layout
+int treeLayoutWidth(Tree *tree, int *xpt, int *ypt, int labelSpacing=2)
+{
+    int width = 0;    
+    for (int i=0; i<tree->nnodes; i++) {
+        int extra = tree->nodes[i]->isLeaf() ?
+            labelSpacing + tree->nodes[i]->longname.size() : 0;
+        if (xpt[i] + extra > width) 
+            width = xpt[i] + extra;
+    }
+    return width;
+}
+
+
 // TODO: add names
 void displayTree(Tree *tree, FILE *outfile, float xscale, int yscale)
 {
@@ -118,18 +132,9 @@ void displayTree(Tree *tree, FILE *outfile, float xscale, int yscale)
     ExtendArray<int> xpt(tree->nnodes);
     ExtendArray<int> ypt(tree->nnodes);
     treeLayout(tree->root, xpt, ypt, xscale, yscale);
-
-    int width = 0;    
-    for (int i=0; i<tree->nnodes; i++) {
-        int extra = 0;
-        
-        if (tree->nodes[i]->isLeaf())
-            extra = labelSpacing + tree->nodes[i]->longname.size();
+    int width = treeLayoutWidth(tree, xpt, ypt, labelSpacing);
     
-        if (xpt[i] + extra > width) 
-            width = xpt[i] + extra;
-    }
-    
+    // init character matrix with blanks
     Matrix<char> matrix(tree->nnodes+1, width+1);
     matrix.setAll(' ');
     
@@ -151,23 +156,14 @@ void displayTreeMatrix(Tree *tree, float xscale, int yscale,
     ExtendArray<int> xpt(tree->nnodes);
     ExtendArray<int> ypt(tree->nnodes);
     treeLayout(tree->root, xpt, ypt, xscale, yscale);
-
-    int width = 0;    
-    for (int i=0; i<tree->nnodes; i++) {
-        int extra = 0;
-        
-        if (tree->nodes[i]->isLeaf())
-            extra = labelSpacing + tree->nodes[i]->longname.size();
-    
-        if (xpt[i] + extra > width) 
-            width = xpt[i] + extra;
-    }
+    int width = treeLayoutWidth(tree, xpt, ypt, labelSpacing);
     
     Matrix<char> matrix2(tree->nnodes+1, width+1);
     matrix2.setAll(' ');
     
     displayNode(matrix2, tree->root, xpt, ypt);
     
+    // copy text to new allocated matrix
     *nrows = matrix2.numRows();
     *ncols = matrix2.numCols();
     *matrix = new char* [*nrows];

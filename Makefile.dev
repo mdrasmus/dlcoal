@@ -3,56 +3,53 @@
 #
 
 
-PY_SRC_PATH=$(HOME)/projects/rasmus/python
+PY_SRC_PATH=$(HOME)/projects/compbio/python
 SPIMAP_SRC_PATH=$(HOME)/projects/spimap/python/
 SPIMAP_CPP_PATH=$(HOME)/projects/spimap/src
 
-RASMUS_SRC_FILES = __init__ \
-                   linked_list \
-                   plotting \
-                   tablelib \
-                   timer \
-                   treelib \
-                   treelib_parser \
-                   treelib_lex \
-                   treelib_tab \
-	           textdraw \
-                   stats \
-                   svg \
-                   symbolic \
-                   util 
+RASMUS_SRC_FILES = __init__.py \
+                   linked_list.py \
+                   plotting.py \
+                   tablelib.py \
+                   timer.py \
+                   treelib.py \
+                   treelib_parser.py \
+                   treelib_lex.py \
+                   treelib_tab.py \
+		   testing.py \
+	           textdraw.py \
+                   stats.py \
+                   svg.py \
+                   symbolic.py \
+                   util.py \
+                   ply/__init__.py \
+                   ply/lex.py \
+                   ply/yacc.py \
+                   vis/__init__.py \
+                   vis/treesvg.py
 
-COMPBIO_SRC_FILES = __init__ \
-                    birthdeath \
-		    coal \
-                    fasta \
-                    phylo \
-                    seqlib
+COMPBIO_SRC_FILES = __init__.py \
+                    birthdeath.py \
+		    coal.py \
+                    fasta.py \
+                    phylo.py \
+                    seqlib.py
 
-SPIMAP_SRC_FILES = __init__ \
-                   ctypes_export \
-                   topology_prior
+SPIMAP_SRC_FILES = __init__.py \
+                   ctypes_export.py \
+                   topology_prior.py
 
 
 
 # copy subset of python modules for packaging with spidir
 includedep:
-	mkdir -p dlcoal/deps/rasmus
 	touch dlcoal/deps/__init__.py
-	for mod in $(RASMUS_SRC_FILES); do \
-		cp $(PY_SRC_PATH)/rasmus/$${mod}.py dlcoal/deps/rasmus/; \
-	done
 
-	mkdir -p dlcoal/deps/compbio
-	for mod in $(COMPBIO_SRC_FILES); do \
-		cp $(PY_SRC_PATH)/compbio/$${mod}.py dlcoal/deps/compbio/; \
-	done
 
-	mkdir -p dlcoal/deps/spidir
-	for mod in $(SPIMAP_SRC_FILES); do \
-		cp $(SPIMAP_SRC_PATH)/spidir/$${mod}.py dlcoal/deps/spidir/; \
-	done
-
+	./cp-deps.py $(PY_SRC_PATH)/rasmus dlcoal/deps/rasmus $(RASMUS_SRC_FILES)
+	./cp-deps.py $(PY_SRC_PATH)/compbio dlcoal/deps/compbio $(COMPBIO_SRC_FILES)
+	./cp-deps.py $(SPIMAP_SRC_PATH)/spidir dlcoal/deps/spidir/ $(SPIMAP_SRC_FILES)
+	
 	mkdir -p src/spidir
 	cp $(SPIMAP_CPP_PATH)/*{.cpp,.h}  src/spidir
 	

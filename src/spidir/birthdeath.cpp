@@ -8,11 +8,11 @@
 =============================================================================*/
 
 // c/c++ includes
-#include <common.h>
 #include <math.h>
 
 // spidir includes
 #include "birthdeath.h"
+#include "common.h"
 
 
 namespace spidir
@@ -95,9 +95,68 @@ double birthDeathCountsSlow(int start, int end, float time,
 
 // returns the probability of 'start' genes giving rise to 'end' genes after 
 // time 'time'
-// much faster computation than birthDeathCounts2
+// much faster computation than birthDeathCountsSlow
+double birthDeathCountsLog(int start, int end, float time, 
+                           float birth, float death)
+{
+    if (start == 0) {
+        if (end == 0)
+            return 0.0;
+        else
+            return -INFINITY;
+    }
+
+    const double ertime = exp((birth-death)*time);
+    const double tmp = (ertime-1.0) / (birth*ertime - death);
+    const double a = death * tmp;
+    const double b = birth * tmp;
+    
+    // all 'start' genes die out
+    if (end == 0) {
+        //return ipow(a, start);
+        return log(a) * start;
+    }
+    
+    // log scale
+    // compute base case
+    double f = log(a) * start + log(b) * end;
+    int sf = 1;
+    if (start > 1)
+        f += log(start + end - 1);
+    for (int k=2; k<start; k++)
+        f += log((start + end - k) / double(k));
+    
+    double p = f;
+    int sp = 1;
+    double x = start;
+    double y = end;
+    double z = start + end - 1;
+    const double oneab = (1.0 - a - b) / (a * b);
+    const int iter = (start < end) ? start : end;
+    for (int j=1; j<=iter; j++) {
+        double c = oneab * x * y / (j * z);        
+        sf *= (2 * int(c > 0.0) - 1);
+        f += log(fabs(c));
+        logadd_sign(sp, p, sf, f, &sp, &p);
+        x--;
+        y--;
+        z--;
+        //printf("p=%f, s=%f, f=%f, c=%f\n", p, s, f, c);
+    }
+
+    // round to zero prob
+    if (sp < 0)
+        return -INFINITY;
+    
+    return p;
+}
+
+
+// returns the probability of 'start' genes giving rise to 'end' genes after 
+// time 'time'
+// much faster computation than birthDeathCountsSlow
 double birthDeathCounts(int start, int end, float time, 
-                       float birth, float death)
+                           float birth, float death)
 {
     if (start == 0) {
         if (end == 0)
@@ -149,7 +208,6 @@ double birthDeathCounts(int start, int end, float time,
 
     return p;
 }
-
 
 
 // Probability of no birth from 'n' lineages starting at time 0, 

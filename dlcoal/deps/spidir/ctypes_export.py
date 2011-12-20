@@ -37,6 +37,7 @@ c_int_list = (c_int_p, lambda x: c_list(c_int, x))
 c_float_list = (c_float_p, lambda x: c_list(c_float, x))
 c_float_matrix = (c_float_p_p, lambda x: c_matrix(c_float, x))
 c_int_matrix = (c_int_p_p, lambda x: c_matrix(c_int, x))
+c_char_matrix = (c_char_p_p, lambda x: c_list(c_char_p, x))
 
 
 class Exporter (object):
@@ -87,14 +88,15 @@ class Exporter (object):
             # record array sizes
             sizes = {}
             for i, argtype in enumerate(prototypes[0::2]):
-                if argtype in (c_int_list, c_float_list, c_float_matrix):
+                if argtype in (c_int_list, c_float_list, c_float_matrix,
+                               c_char_matrix):
                     sizes[i] = len(args[i])
 
             # convert arguments to c types
             cargs = [f(a) for f, a in zip(converts, args)]
 
             # call c function
-            ret = cfunc(*cargs)        
+            ret = cfunc(*cargs)
 
             # pass back arguments
             # used for pointers to arrays

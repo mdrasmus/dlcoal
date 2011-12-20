@@ -18,11 +18,12 @@ def dlcoal_recon(tree, stree, gene2species,
                  nsearch=1000,
                  nsamples=100, nprescreen=20,
                  search=None,
+                 init_locus_tree=None,
                  log=sys.stdout):
     """
     Perform reconciliation using the DLCoal model
 
-    Returns maxrecon is defined as
+    Returns maxrecon defined as
 
     maxrecon = {'coal_recon': coal_recon,
                 'locus_tree': locus_tree,
@@ -41,7 +42,8 @@ def dlcoal_recon(tree, stree, gene2species,
     reconer = DLCoalRecon(tree, stree, gene2species,
                           n, duprate, lossrate,
                           pretime=pretime, premean=premean,
-                          nsamples=nsamples, log=log)
+                          nsamples=nsamples, log=log,
+                          init_locus_tree=init_locus_tree)
     reconer.set_proposer(DLCoalReconProposer(
         tree, stree, gene2species, search=search))
     return reconer.recon(nsearch).get_dict()
@@ -54,6 +56,7 @@ class DLCoalRecon (object):
                  n, duprate, lossrate,
                  pretime=None, premean=None,
                  nsamples=100,
+                 init_locus_tree=None,
                  name_internal="n", log=sys.stdout):
 
         # init coal tree
@@ -68,6 +71,8 @@ class DLCoalRecon (object):
         self.nsamples = nsamples
         self.name_internal = name_internal
         self.log_stream = log
+        self.init_locus_tree = init_locus_tree \
+                               if init_locus_tree else tree.copy()
 
         self.proposer = DLCoalReconProposer(tree, stree, gene2species)
 
@@ -111,8 +116,9 @@ class DLCoalRecon (object):
 
         # init locus tree as congruent to coal tree
         # equivalent to assuming no ILS
-        self.proposer.set_locus_tree(self.coal_tree.copy())
-
+        #self.proposer.set_locus_tree(self.coal_tree.copy())
+        self.proposer.set_locus_tree(self.init_locus_tree.copy())
+        
         self.maxp = - util.INF
         self.maxrecon = None
 
@@ -134,7 +140,7 @@ class DLCoalRecon (object):
                                                 proposal.coal_recon,
                                                 proposal.locus_tree)
         maxcount = max(x[0] for x in counts.values())
-        util.logger("max lineage count %d" % maxcount)
+        #util.logger("max lineage count %d" % maxcount)
         if maxcount > 10:
             return -util.INF
         
@@ -181,7 +187,7 @@ class DLCoalReconProposer (object):
 
     def __init__(self, coal_tree, stree, gene2species,
                  search=phylo.TreeSearchNni,
-                 num_coal_recons=1):  # DEBUG
+                 num_coal_recons=1): # DEBUG
         self._coal_tree = coal_tree
         self._stree = stree
         self._gene2species = gene2species

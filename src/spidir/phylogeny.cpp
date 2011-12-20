@@ -8,7 +8,7 @@
 =============================================================================*/
 
 
-
+#include "logging.h"
 #include "phylogeny.h"
 #include "parsing.h"
 
@@ -36,6 +36,10 @@ void getReconRootOrder(Node *node, ExtendArray<Edge> *edges)
 // NOTE: assumes binary tree
 void reconRoot(Tree *tree, SpeciesTree *stree, int *gene2species)
 {
+
+    // special cases
+    if (tree->nnodes < 3)
+        return;
     
     // determine rooting order
     ExtendArray<Edge> edges(0, tree->nnodes);
@@ -344,7 +348,7 @@ int addImpliedSpecNodes(Tree *tree, Tree *stree,
 // NOTE: this function adds back distance
 void removeImpliedSpecNodes(Tree *tree, int addedNodes)
 {
-    const int nnodes = tree->nnodes;
+    int nnodes = tree->nnodes;
 
     // remove nodes from end of node list
     for (int i=nnodes-1; i>=nnodes-addedNodes; i--)
@@ -382,6 +386,67 @@ void removeImpliedSpecNodes(Tree *tree, int addedNodes)
         delete oldnode;
     }
 }
+
+
+void writeRecon(FILE *out, Tree *tree, SpeciesTree *stree,
+                int *recon, int *events)
+{
+    const char* eventstr[] = { "gene", "spec", "dup" };
+
+    for (int i=0; i<tree->nnodes; i++) {
+        Node *node = tree->nodes[i];
+        fprintf(out, "%s\t%s\t%s\n", node->longname.c_str(), 
+                stree->nodes[recon[i]]->longname.c_str(), 
+                eventstr[events[i]]);
+    }
+}
+
+
+bool writeRecon(const char *filename, Tree *tree, SpeciesTree *stree,
+                int *recon, int *events)
+{
+    FILE *out = NULL;
+    
+    if ((out = fopen(filename, "w")) == NULL) {
+        printError("cannot write file '%s'\n", filename);
+        return false;
+    }
+
+    writeRecon(out, tree, stree, recon, events);
+    fclose(out);
+    return true;
+}
+
+
+
+// sets the longnames of the internal nodes of a tree that do not already 
+// have longnames.
+// uses preorder traversal, by default root is "n1"
+// returns last name used in subtree
+int setInternalNames(Tree *tree, Node *node, int name)
+{
+    const int maxsize = 20;
+    char numstr[maxsize + 1];
+
+    if (node == NULL) {
+        node = tree->root;
+    }
+
+
+    if (node->longname == "") {
+        snprintf(numstr, maxsize, "n%d", name);
+        node->longname = string(numstr);
+    }
+
+    for (int i=0; i<node->nchildren; i++) {
+        if (!node->children[i]->isLeaf()) {
+            name = setInternalNames(tree, node->children[i], name+1);
+        }
+    }
+
+    return name;
+}
+
 
 //=============================================================================
 // Gene2species

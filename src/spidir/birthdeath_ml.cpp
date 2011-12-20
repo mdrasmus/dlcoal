@@ -21,6 +21,7 @@
 
 
 // spidir includes
+#include "common.h"
 #include "Matrix.h"
 #include "Tree.h"
 #include "phylogeny.h"
@@ -52,8 +53,8 @@ double birthDeathTreeCounts(Tree *tree, int nspecies, int *counts,
     // initialize leaves
     for (int i=0; i<nspecies; i++) {
         for (int j=0; j<maxgene; j++)
-            tab[i][j] = 0.0;
-        tab[i][counts[i]] = 1.0;
+            tab[i][j] = -INFINITY;
+        tab[i][counts[i]] = 0.0;
     }
 
     // perform post order traversal of tree
@@ -70,19 +71,23 @@ double birthDeathTreeCounts(Tree *tree, int nspecies, int *counts,
         for (int j=0; j<maxgene; j++) {
 
             // compute product over children
-            double prod = 1.0;        
+            double prod = 0.0;        
             for (int ci=0; ci<node->nchildren; ci++) {
                 const int c = node->children[ci]->name;
                 const double t = node->children[ci]->dist;
-                double sum = 0.0;
+                double sum = -INFINITY;
                 
                 for (int j2=0; j2<maxgene; j2++) {
-                    double f = birthDeathCounts(j, j2, t, birth, death) * 
-                           tab[c][j2];
-                    sum += f;
+                    if (j < 20 && j2 < 20)
+                        sum = logadd(sum, log(birthDeathCounts(j, j2, t, 
+                                                               birth, death)) +
+                                     tab[c][j2]);
+                    else
+                        sum = logadd(sum, birthDeathCountsLog(j, j2, t, 
+                                                              birth, death) +
+                                     tab[c][j2]);
                 }
-
-                prod *= sum;
+                prod += sum;
             }
 
             tab[node->name][j] = prod;
@@ -118,17 +123,16 @@ double birthDeathForestCounts(Tree *tree, int nspecies, int nfams,
     for (int i=0; i<nfams; i++) {
         int top = 0;
         for (int j=0; j<nspecies; j++) {
-            assert(counts[i][j] < maxgene);
             if (counts[i][j] > top) top = counts[i][j];
         }
 
         int maxgene2 = top * 2;
-        if (maxgene2 < 20) maxgene2 = 10;
+        if (maxgene2 < 10) maxgene2 = 10;
         if (maxgene2 > maxgene) maxgene2 = maxgene;
-
-        logl += mult[i] * log(birthDeathTreeCounts(tree, nspecies, counts[i], 
-                                                   birth, death, maxgene2,
-                                                   rootgene, tab));
+        
+        logl += mult[i] * birthDeathTreeCounts(tree, nspecies, counts[i], 
+                                               birth, death, maxgene2,
+                                               rootgene, tab);
     }
 
     // cleanup
@@ -220,7 +224,7 @@ public:
             dpenalty = -death;
             death = 0.0000002;
         }
-
+        
         BirthDeathCountsML *p = (BirthDeathCountsML*) params;
 
         double prob = -birthDeathForestCounts(p->tree, p->nspecies, p->nfams,
@@ -293,6 +297,9 @@ void *birthDeathCountsML_alloc(Tree *tree, int nspecies, int nfams,
                                int maxgene,
                                int rootgene)
 {
+    // handle errors myself
+    gsl_set_error_handler_off();
+
     // copy arrays to separate memory
     int **counts2 = allocMatrix<int>(nfams, nspecies);
     int *mult2 = new int [nfams];

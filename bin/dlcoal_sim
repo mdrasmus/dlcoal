@@ -65,3 +65,20 @@ dlcoal.sim.dlcoal_sims(
     minsize=conf.minsize)
 
 
+'''
+
+# get popsizes
+#  NOTE: popsize is multiplied by 2 to account for diploid species.
+#  Also popsize scaled to fit species tree time units
+#  (* generation time / 1e6)
+#  This is done in order to allow different generation times per species
+#  tree branch, and keeps all trees (gene, locus, species) ultrametric.
+if conf.popsize is None:
+    # scale popsizes by generation time
+    popsizes = {}
+    for node in stree:
+        popsizes[node.name] = (2 * float(node.data["pop"]) *
+                               float(node.data["g"]) / 1e6)
+else:
+    popsizes = 2 * conf.popsize * conf.gentime / 1e6
+'''

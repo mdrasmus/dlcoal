@@ -2,8 +2,7 @@
 # package spidir
 
 files = ["bin",
-         "include",
-         "python",
+         "dlcoal",
          "src",
          "examples",
 

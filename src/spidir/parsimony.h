@@ -1,3 +1,14 @@
+/*=============================================================================
+
+  Matt Rasmussen
+  Copyright 2007-2011
+
+  Parsimony phylogeny algorithm
+
+=============================================================================*/
+
+
+
 #ifndef SPIDIR_PARSIMONY_H
 #define SPIDIR_PARSIMONY_H
 

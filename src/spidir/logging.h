@@ -12,6 +12,7 @@
 #define SPIDIR_LOGGING_H
 
 // c/c++ includes
+#include <stdio.h>
 #include <sys/time.h>
 
 namespace spidir {

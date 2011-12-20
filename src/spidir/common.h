@@ -61,15 +61,65 @@ double fchoose(int n, int k);
 // computes log(a + b) given log(a) and log(b)
 inline double logadd(double lna, double lnb)
 {
-    double diff = lna - lnb;
     if (lna == 1.0)
         return lnb;
     if (lnb == 1.0)
         return lna;
+    
+    double diff = lna - lnb;
     if (diff < 500.0)
         return log(exp(diff) + 1.0) + lnb;
     else
         return lna;
+}
+
+
+// computes log(a + b) given log(a) and log(b)
+inline double logsub(double lna, double lnb)
+{
+    if (lna == 1.0)
+        return lnb;
+    if (lnb == 1.0)
+        return lna;
+    
+    double diff = lna - lnb;
+    if (diff < 500.0) {
+        double diff2 = exp(diff) - 1.0;
+        if (diff2 == 0.0)
+            return -INFINITY;
+        else
+            return log(diff2) + lnb;
+    } else
+        return lna;
+}
+
+
+// Adding numbers in log-space with signs
+inline void logadd_sign(int sa, double lna, 
+                        int sb, double lnb,
+                        int *sc, double *lnc)
+{
+    if (sa > 0) {
+        if (sb > 0) {
+            *sc = 1; *lnc = logadd(lna, lnb);
+        } else {
+            if (lna > lnb) {
+                *sc = 1; *lnc = logsub(lna, lnb);
+            } else {
+                *sc = -1; *lnc = logsub(lnb, lna);
+            }
+        }
+    } else {
+        if (sb > 0) {
+            if (lna > lnb) {
+                *sc = -1; *lnc = logsub(lna, lnb);
+            } else {
+                *sc = 1; *lnc = logsub(lnb, lna);
+            }
+        } else {
+            *sc = -1; *lnc = logadd(lna, lnb);
+        }
+    }
 }
 
 

@@ -62,8 +62,6 @@ SpidirParams *readSpidirParams(const char* filename)
 
 
 
-
-// UNDER CONSTRUCTION
 bool SpidirParams::order(SpeciesTree *stree)
 {
     if (stree->nnodes != nsnodes) {
@@ -93,7 +91,16 @@ bool SpidirParams::order(SpeciesTree *stree)
     ExtendArray<int> invperm(0, stree->nnodes);
         
     for (int j=0; j<nsnodes; j++) {
-        assert(invperm.size() == j);    
+        if (invperm.size() != j) {
+            printError("unable to match '%s' to the species tree", 
+                       names[j].c_str());
+            return false;
+        }
+
+        // try to parse node id as an int
+        int id;
+        bool isint = (sscanf(names[j].c_str(), "%d", &id) == 1);
+        
         for (int i=0; i<stree->nnodes; i++) {
             if (stree->nodes[i]->isLeaf()) {
                 // if leaf, check if names match
@@ -102,19 +109,17 @@ bool SpidirParams::order(SpeciesTree *stree)
                     break;
                 }
             } else {
-                if (atoi(names[j].c_str()) == inodes[i]) {
+                if (isint && id == inodes[i]) {
                     invperm.append(i);
                     break;
                 }
             }
         }
     }
-    
 
     
-    ExtendArray<int> perm(stree->nnodes);
-    
     // apply permutation
+    ExtendArray<int> perm(stree->nnodes);
     invertPerm(invperm, perm, nsnodes);    
       
     permute(names, perm, nsnodes);

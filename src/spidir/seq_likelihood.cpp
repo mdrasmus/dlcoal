@@ -40,6 +40,11 @@ void calcLkTableRow(int seqlen, Model &model,
 		    floatlk *lktablea, floatlk *lktableb, floatlk *lktablec, 
 		    float adist, float bdist);
 
+template <class Model>
+void calcLogLkTableRow(int seqlen, Model &model,
+                       floatlk *lktablea, floatlk *lktableb, floatlk *lktablec,
+                       float adist, float bdist);
+
 
 //=============================================================================
 
@@ -248,6 +253,42 @@ floatlk branchLikelihoodHky(floatlk *probs1, floatlk *probs2, int seqlen,
 }
 
 
+/*
+
+  lk = prod_j sum_k bgfreq[k] * lktable[root][j,k] 
+     = prod_j sum_k bgfreq[k] * (sum_x P(x|k, t_a) lktable[a][j,x]) *
+                                (sum_y P(y|k, t_b) lktable[b][j,y])
+
+ */
+floatlk branchLogLikelihoodHky(floatlk *probs1, floatlk *probs2, int seqlen, 
+                               const float *bgfreq, float kappa, float t)
+{
+
+    HkyModel hky(bgfreq, kappa);
+
+    // allocate precomputed probability terms
+    floatlk *probs3 = new floatlk [seqlen*4];
+    
+    calcLogLkTableRow(seqlen, hky, probs1, probs2, probs3, 0, t);
+
+    floatlk logl = 0.0;
+
+    // interate over sequence
+    for (int j=0; j<seqlen; j++) {
+	floatlk sum = -INFINITY;
+	for (int k=0; k<4; k++)
+	    sum = logadd(sum, log(bgfreq[k]) + probs3[matind(4,j,k)]);
+	logl += sum;
+    }
+
+    // free probability table
+    delete [] probs3;
+    
+    return logl;
+}
+
+
+
 floatlk branchLikelihoodHkyDeriv(floatlk *probs1, floatlk *probs2, int seqlen, 
                                  const float *bgfreq, float kappa, float t)
 {
@@ -348,7 +389,7 @@ void calcLkTableRow(int seqlen, Model &model,
     
     // build transition matrices
     model.getMatrix(adist, atransmat);
-    model.getMatrix(bdist, btransmat);
+    model.getMatrix(bdist, btransmat);    
     
     // iterate over sites
     for (int j=0; j<seqlen; j++) {
@@ -376,6 +417,52 @@ void calcLkTableRow(int seqlen, Model &model,
         }
     }
 }
+
+
+// conditional likelihood recurrence
+template <class Model>
+void calcLogLkTableRow(int seqlen, Model &model,
+                       floatlk *lktablea, floatlk *lktableb, floatlk *lktablec,
+                       float adist, float bdist)
+{
+    float atransmat[16];
+    float btransmat[16];
+    
+    // build transition matrices
+    model.getMatrix(adist, atransmat);
+    model.getMatrix(bdist, btransmat);
+
+    for (int i=0; i<16; i++) {
+        atransmat[i] = log(atransmat[i]);
+        btransmat[i] = log(btransmat[i]);
+    }
+
+    // iterate over sites
+    for (int j=0; j<seqlen; j++) {
+        const floatlk *terma = &lktablea[matind(4, j, 0)];
+        const floatlk *termb = &lktableb[matind(4, j, 0)];
+        
+        for (int k=0; k<4; k++) {
+            const float *aptr = &atransmat[k*4];
+            const float *bptr = &btransmat[k*4];
+            
+            // sum_x P(x|k, t_a) lktable[a][j,x]
+            floatlk prob1 = aptr[0] + terma[0];
+            prob1 = logadd(prob1, aptr[1] + terma[1]);
+            prob1 = logadd(prob1, aptr[2] + terma[2]);
+            prob1 = logadd(prob1, aptr[3] + terma[3]);
+
+            // sum_y P(y|k, t_b) lktable[b][j,y]
+            floatlk prob2 = bptr[0] + termb[0];
+            prob2 = logadd(prob2, bptr[1] + termb[1]);
+            prob2 = logadd(prob2, bptr[2] + termb[2]);
+            prob2 = logadd(prob2, bptr[3] + termb[3]);
+
+            lktablec[matind(4, j, k)] = prob1 + prob2;
+        }
+    }
+}
+
 
 
 // conditional likelihood recurrence
@@ -462,6 +549,58 @@ void calcLkTable(floatlk** lktable, Tree *tree,
 }
 
 
+// initialize the condition likelihood table
+template <class Model>
+void calcLogLkTable(floatlk** lktable, Tree *tree, 
+                    int nseqs, int seqlen, char **seqs, Model &model)
+{
+    // recursively calculate cond. lk. of internal nodes
+    ExtendArray<Node*> nodes(0, tree->nnodes);
+    getTreePostOrder(tree, &nodes);
+    
+    for (int l=0; l<nodes.size(); l++) {
+        Node *node = nodes[l];
+        int i = node->name;
+        
+        if (node->isLeaf()) {
+            // initialize leaves from sequence
+        
+            // iterate over sites
+            for (int j=0; j<seqlen; j++) {
+                int base = dna2int[int(seqs[i][j])];
+
+                if (base == -1) {
+                    // handle gaps
+                    lktable[i][matind(4, j, 0)] = 0.0;
+                    lktable[i][matind(4, j, 1)] = 0.0;
+                    lktable[i][matind(4, j, 2)] = 0.0;
+                    lktable[i][matind(4, j, 3)] = 0.0;
+                } else {
+                    // initialize base
+                    lktable[i][matind(4, j, 0)] = -INFINITY;
+                    lktable[i][matind(4, j, 1)] = -INFINITY;
+                    lktable[i][matind(4, j, 2)] = -INFINITY;
+                    lktable[i][matind(4, j, 3)] = -INFINITY;
+
+                    lktable[i][matind(4, j, base)] = 0.0;
+                }
+            }
+        } else {
+            // compute internal nodes from children
+            Node *node1 = node->children[0];
+            Node *node2 = node->children[1];
+            
+            calcLogLkTableRow(seqlen, model, 
+                              lktable[node1->name], 
+                              lktable[node2->name], 
+                              lktable[node->name],
+                              node1->dist, node2->dist);
+        }
+    }
+}
+
+
+
 // calculate log(P(D | T, B))
 template <class Model>
 floatlk getTotalLikelihood(floatlk** lktable, Tree *tree, 
@@ -482,6 +621,25 @@ floatlk getTotalLikelihood(floatlk** lktable, Tree *tree,
 }
 
 
+// calculate log(P(D | T, B))
+template <class Model>
+floatlk getTotalLogLikelihood(floatlk** lktable, Tree *tree, 
+                              int seqlen, Model &model, const float *bgfreq)
+{
+    // integrate over the background base frequency
+    const floatlk *rootseq = lktable[tree->root->name];
+    floatlk lk = 0.0;
+    for (int k=0; k<seqlen; k++) {
+        floatlk prob = -INFINITY;
+        for (int x=0; x<4; x++)
+            prob = logadd(prob, log(bgfreq[x]) + rootseq[matind(4, k, x)]);
+        lk += prob;
+    }
+
+    // return log likelihood
+    return lk;
+}
+
 
 template <class Model>
 floatlk calcSeqProb(Tree *tree, int nseqs, char **seqs, 
@@ -490,9 +648,9 @@ floatlk calcSeqProb(Tree *tree, int nseqs, char **seqs,
     int seqlen = strlen(seqs[0]);
     
     LikelihoodTable table(tree->nnodes, seqlen);
-    calcLkTable(table.lktable, tree, nseqs, seqlen, seqs, model);
-    floatlk logl = getTotalLikelihood(table.lktable, tree, seqlen, 
-                                      model, bgfreq);
+    calcLogLkTable(table.lktable, tree, nseqs, seqlen, seqs, model);
+    floatlk logl = getTotalLogLikelihood(table.lktable, tree, seqlen, 
+                                         model, bgfreq);
     
     return logl;
 }
@@ -500,7 +658,7 @@ floatlk calcSeqProb(Tree *tree, int nseqs, char **seqs,
 extern "C" {
 
 floatlk calcSeqProbHky(Tree *tree, int nseqs, char **seqs, 
-                      const float *bgfreq, float ratio)
+                       const float *bgfreq, float ratio)
 {
     HkyModel hky(bgfreq, ratio);
     return calcSeqProb(tree, nseqs, seqs, bgfreq, hky);
@@ -675,7 +833,6 @@ public:
     {
 	float logl = -INFINITY;
 	floatlk **lktable = table.lktable;
-
 
 	for (int i=0; i<rootingOrder.size(); i+=2) {
 	    // remembering old children of root
@@ -870,6 +1027,10 @@ double findMLKappaHky(Tree *tree, int nseqs, char **seqs,
     const int maxiter = 1;
     floatlk maxlk = -INFINITY;
     float maxk = minkappa;
+
+    // special case
+    if (nseqs < 2)
+        return 0.0;
 
     for (float k=minkappa; k<=maxkappa; k+=kappastep) {
         float l = findMLBranchLengthsHky(tree, nseqs, seqs, bgfreq, k, 

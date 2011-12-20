@@ -25,6 +25,7 @@ except ImportError:
     from . import dep
     dep.load_deps()
     import rasmus, compbio
+from compbio import fasta
 
     
 
@@ -112,7 +113,7 @@ if spidir:
     export(spidir, "birthDeathCounts", c_double,
            [c_int, "start", c_int, "end", c_float, "time",
             c_float, "birth", c_float, "death"])
-    export(spidir, "birthDeathCounts", c_double,
+    export(spidir, "birthDeathCountsLog", c_double,
            [c_int, "start", c_int, "end", c_float, "time",
             c_float, "birth", c_float, "death"])
     export(spidir, "birthDeathCountsSlow", c_double,
@@ -181,8 +182,8 @@ if spidir:
 
     # parsimony
     export(spidir, "parsimony", c_void_p,
-           [c_int, "nnodes", c_int, "ptree", c_int, "nseqs",
-            c_char_p_p, "seqs", c_float, "dists",
+           [c_int, "nnodes", c_int_list, "ptree", c_int, "nseqs",
+            c_char_p_p, "seqs", c_float_list, "dists",
             c_int, "buildAncestral", c_char_p_p, "ancetralSeqs"])
 
     # sequence likelihood functions
@@ -452,6 +453,29 @@ def calc_joint_prob(align, tree, stree, recon, events, params,
         return branchp, topp, seqlk
     else:
         return branchp + topp + seqlk
+
+
+def find_parsimony(tree, align):
+
+    ptree, nodes, nodelookup = make_ptree(tree)
+    nnodes = len(nodes)
+    dists = [x.dist for x in nodes]
+
+    nseqs = len(align)
+    seqlen = len(align.values()[0])
+    leaves = [x for x in nodes if x.is_leaf()]
+    calign = (c_char_p * nseqs)(* [align[x.name] for x in leaves])
+    cancestral = (c_char_p * (nseqs-1))(* ["-"*seqlen for i in xrange(nseqs-1)])
+
+    #print ">>>", list(cancestral)
+    parsimony(nnodes, ptree, nseqs, calign, dists, True, cancestral)
+    #print list(cancestral)
+    
+    ancestral = fasta.FastaDict()
+    for i, key in enumerate(node.name for node in nodes if not node.is_leaf()):
+        ancestral[key] = cancestral[i]
+
+    return ancestral
 
 
 #=============================================================================

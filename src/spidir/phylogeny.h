@@ -160,6 +160,15 @@ int addImpliedSpecNodes(Tree *tree, Tree *stree,
 void removeImpliedSpecNodes(Tree *tree, int addedNodes);
 
 
+
+void writeRecon(FILE *out, Tree *tree, SpeciesTree *stree,
+                int *recon, int *events);
+bool writeRecon(const char *filename, Tree *tree, SpeciesTree *stree,
+                int *recon, int *events);
+int setInternalNames(Tree *tree, Node *node=NULL, int name=1);
+
+
+
 } // namespace spidir
 
 #endif // SPIDIR_PHYLOGENY_H

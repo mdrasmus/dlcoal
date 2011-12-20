@@ -355,7 +355,7 @@ def show_data_files(prefix, stree,
         coal_recon, coal_events = phylo.read_recon_events(
             prefix + ".coal.recon", coal_tree, locus_tree)
 
-        treelib.reorder_tree(coal_tree, locus_tree, reroot=False)
+        treelib.reorder_tree(coal_tree, locus_tree, root=False)
 
     if conf.xscale is None:
         try:

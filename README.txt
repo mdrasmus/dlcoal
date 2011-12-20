@@ -1,30 +1,26 @@
-SPIMAP (Spieces informed max a poseriori)
-http://compbio.mit.edu/spimap/
+DLCoal (duplications, losses, and coalescence)
+http://compbio.mit.edu/dlcoal/
 Matthew Rasmussen
 
 =============================================================================
 ABOUT
 
-SPIMAP is a phylogenetic program that uses a species tree to aide in
-reconstructing gene trees.  It uses code from the SPIDIR phylogenetic library.
+DLCoal is a software package containing the DLCoalRecon program as well as
+several other useful utilities for working with gene trees.
 
-SPIMAP citation: 
-Rasmussen, Kellis.  A Bayesian Approach for Fast and Accurate Gene-tree 
-Reconstruction. Mol Biol Evol. 2011 Jan;28(1):273-90. Epub 2010 Jul 25.
+DLCoalRecon is a reconciliation program that maps a gene tree to species tree
+in order to determine how gene duplications and losses have occurred.  
+DLCoalRecon's unique feature is that it can perform reconciliation despite
+the presence of incomplete linegae sorting.
 
-SPIDIR citation:
-Rasmussen, Kellis. Accurate gene-tree reconstruction by learning
-gene- and species-specific substitution rates across multiple complete genomes.
-Genome Research. 2007
-
-This package includes the C++ source of the SPIMAP program and SPIDIR library
-as well as several library interfaces for C and python.
+DLCoal citation: 
+Rasmussen, Kellis.  A unified model of gene duplication, loss, and coalescence using a locus tree. 2012
 
 
 =============================================================================
 DEPENDENCIES
 
-SPIMAP has the following requirements:
+DLCoal has the following requirements:
 
 - GNU Scientific library (GSL) http://www.gnu.org/software/gsl/
 - Python (2.5 or greater) http://python.org/
@@ -33,18 +29,14 @@ SPIMAP has the following requirements:
 =============================================================================
 INSTALL
 
-NOTE: Makefile installation will work best on UNIX or CYGWIN.
+NOTE: Makefile installation will work best on UNIX or CYGWIN (Windows).
 
 
-To compile the SPIMAP stand-alone program use the Makefile.
+To compile the DLCoal library use the Makefile.
 
     make
 
-To compile the SPIDIR C-library use:
-    
-    make lib  
-
-Once compiled, to install the SPIMAP program (installs by default in /usr) use:
+Once compiled, to install the DLCoal programs (default install in /usr) use:
 
     make install
 
@@ -52,79 +44,59 @@ To specify your own installation path use:
     
     make install prefix=/usr/local
 
-To use the training scripts (bin/spimap-prep-duploss, etc), python must be
-installed.
+DLCoal can also run directly from the source directory.  Simply add the
+bin/ directory to your PATH or create symlinks to the scripts within bin/
+to any directory on your PATH.
 
 
 =============================================================================
 USAGE
 
-Running spimap with no arguments will print out its command-line usage:
+Running dlcoal_recon with no arguments will print out its command-line usage:
 
-Usage: spimap [OPTION]
 
-  -a,--align  <alignment fasta>
-    sequence alignment in fasta format
+Usage: dlcoal_recon [options] GENE_TREE1 [GENE_TREE2 ...]
 
-  -S,--smap  <species map>
-    gene to species map
+Options:
+  -h, --help            show this help message and exit
+  -s SPECIES_TREE, --stree=SPECIES_TREE
+                        species tree file in newick format (myr)
+  -S GENE_TO_SPECIES_MAP, --smap=GENE_TO_SPECIES_MAP
+                        gene to species map
+  -n POPULATION_SIZE, --popsize=POPULATION_SIZE
+                        Effective population size
+  -D DUPLICATION_RATE, --duprate=DUPLICATION_RATE
+                        rate of a gene duplication (dups/gene/myr)
+  -L LOSS_RATE, --lossrate=LOSS_RATE
+                        rate of gene loss (losses/gene/myr)
+  -g GENRATION_TIME, --gentime=GENRATION_TIME
+                        generation time (years)
+  -i ITERATIONS, --iter=ITERATIONS
+                        number of search iterations
 
-  -s,--stree  <species tree>
-    species tree file in newick format
+  File extensions:
+    -I INPUT_EXT, --inext=INPUT_EXT
+                        input file extension (default='')
+    -O OUTPUT_EXT, --outext=OUTPUT_EXT
+                        output file extension (default='.dlcoal')
 
-  -p,--param  <params file>
-    substitution rate parameters file
-
-  -o,--output  <output filename prefix>
-    prefix for all output filenames
-
-Sequence evolution model
-  -k,--kappa  <transition/transversion ratio>
-    used for HKY model (default=estimate)
-
-  -f,--bgfreq  <A freq>,<C ferq>,<G freq>,<T freq>
-    background frequencies (default: estimate)
-
-Dup/loss evolution model
-  -D,--duprate  <duplication rate>
-    rate of a gene duplication (default=0.1)
-
-  -L,--lossrate  <loss rate>
-    probability of loss (default=0.1)
-
-  -P,--pretime  <pre-speciation time parameter>
-    lambda param of pre-speciation distribution (default=1.0)
-
-Search
-  -i,--niter  <# iterations>
-    number of iterations
-
-  --quickiter  <quick iterations>
-    number of subproposals (default=50)
-
-  -b,--boot  <# bootstraps>
-    number of bootstraps to perform (default: 1)
-
-Information
-  -V,--verbose  <verbosity level>
-    verbosity level 0=quiet, 1=low, 2=medium, 3=high
-
-  --log  <log filename>
-    log filename.  Use '-' to display on stdout.
-
-  -v,--version  
-    display version information
-
-  -h,--help  
-    display help information
-
-  --help-debug  
-    display help information about debug options
+  Miscellaneous:
+    --nprescreen=NUM_PRESCREENS
+                        number of prescreening iterations
+    --nsamples=NUM_SAMPLES
+                        number of samples for dup-loss integration
+                        (default=100)
+    --init-locus-tree=TREE_FILE
+                        initial locus tree for search
+    -x RANDOM_SEED, --seed=RANDOM_SEED
+                        random number seed
+    -l, --log           if given, output debugging log
 
 
 #=============================================================================
 # Examples
 
-See examples/analyze-fungi.sh for an example of how to use each program
-in the SPIMAP package.
+See examples/make.sh for an example of how to use each program
+in the DLCoal package.
+
 

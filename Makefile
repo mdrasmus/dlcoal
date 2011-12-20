@@ -38,7 +38,7 @@ endif
 # DLCoal files
 
 # package
-PKG_VERSION=0.9
+PKG_VERSION:=$(shell python -c 'import dlcoal; print dlcoal.PROGRAM_VERSION_TEXT')
 PKG_NAME=dlcoal
 PKG=dist/$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_DIR=dist/$(PKG_NAME)-$(PKG_VERSION)
@@ -56,6 +56,7 @@ DLCOAL_SRC = \
     src/itree.cpp \
     src/spidir/birthdeath.cpp \
     src/spidir/common.cpp \
+    src/spidir/logging.cpp \
     src/spidir/phylogeny.cpp \
     src/spidir/Tree.cpp \
     src/spidir/top_prior.cpp \

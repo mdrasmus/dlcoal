@@ -8,7 +8,9 @@
 
 from distutils.core import setup, Extension
 
-VERSION = '1.0'
+import dlcoal
+
+VERSION = dlcoal.PROGRAM_VERSION_TEXT
 
 setup(
     name='dlcoal',
@@ -17,9 +19,9 @@ setup(
     long_description = """
             """,
     author='Matt Rasmussen',
-    author_email='rasmus@mit.edu',
-#    url='http://compbio.mit.edu/spimap/',
-#    download_url='http://compbio.mit.edu/pub/spimap/spimap-%s.tar.gz' % VERSION,
+    author_email='rasmus@alum.mit.edu',
+    url='http://compbio.mit.edu/dlcoal/',
+    download_url='http://compbio.mit.edu/dlcoal/pub/dlcoal-%s.tar.gz' % VERSION,
     
     classifiers=[
           'Development Status :: 5 - Production/Stable',

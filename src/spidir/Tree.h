@@ -10,6 +10,7 @@
 #ifndef SPIDIR_TREE_H
 #define SPIDIR_TREE_H
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string>
 
@@ -245,34 +246,15 @@ public:
     // Gets leaf names of the nodes of a tree
     // Internal nodes are often named "" (empty string)
     //  Arguments:
-    //      names:      output array for storing node names (size > # leaves)
+    //      names:      output array for storing node names (size > nnodes)
     //      leavesOnly: whether to only get names for leaves, or all nodes
-    void getLeafNames(string *names, bool leavesOnly=true)
+    void getNames(string *names, bool leavesOnly=true)
     {
         for (int i=0; i<nnodes; i++)
             if (!leavesOnly || nodes[i]->isLeaf())
                 names[i] = nodes[i]->longname;
     }
-    
-    
-    // Gets names of the nodes of a tree
-    // This differs from getLeafNames in that internal nodes will be named 
-    // after their name id (int) converted to a string.
-    //  Arguments:
-    //      names: output array (size = nnodes) for node names
-    void getNames(string *names)
-    {
-        for (int i=0; i<nnodes; i++) {
-            if (nodes[i]->isLeaf())
-                names[i] = nodes[i]->longname;
-            else {
-                char numstr[21];
-                snprintf(numstr, 20, "%d", nodes[i]->name);
-                names[i] = numstr;
-            }
-        }
-    }
-    
+        
     // Returns whether tree is rooted
     bool isRooted()
     {

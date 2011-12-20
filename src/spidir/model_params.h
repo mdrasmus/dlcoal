@@ -46,7 +46,7 @@ public:
         }
     }
     
-    ~SpidirParams()
+    virtual ~SpidirParams()
     {
         delete [] names;
         delete [] sp_alpha;
@@ -54,7 +54,7 @@ public:
     }
     
     // sorts the parameters to match newnames
-    bool order(SpeciesTree *tree);    
+    virtual bool order(SpeciesTree *tree);    
 
     int nsnodes;
     string *names;
@@ -64,6 +64,20 @@ public:
     float gene_beta;
     float pretime_lambda;
 };
+
+
+// null parameters
+class NullSpidirParams : public SpidirParams
+{
+public:
+    NullSpidirParams() : SpidirParams(0, NULL, NULL, NULL, 0, 0) {}
+
+    virtual bool order(SpeciesTree *tree) { return true; }
+};
+
+
+inline bool isNullParams(SpidirParams *params)
+{ return params->nsnodes == 0; }
 
 
 SpidirParams *readSpidirParams(const char* filename);

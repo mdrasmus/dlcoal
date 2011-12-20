@@ -235,6 +235,41 @@ HkyModel::HkyModel(const float *bgfreq, float kappa) :
     a_r = rho * a_y;
 }
 
+
+/* For Jukes Cantor we have: 
+
+    pi_r = pi[DNA_A] + pi[DNA_G] = .5;
+    pi_y = pi[DNA_C] + pi[DNA_T] = .5;
+    rho = pi_r / pi_y = 1.0;
+
+    // convert the usual ratio definition (kappa) to Felsenstein's 
+    // definition (R)
+    ratio = (pi[DNA_T]*pi[DNA_C] + pi[DNA_A]*pi[DNA_G]) * kappa / \
+        (pi_y * pi_r) =
+        (.25*.25 + .25*.25) * 1.0 / (.5 * .5) =
+        (1/16 + 1/16) / .25 = 1/8 * 4 = .5;
+        
+    // determine HKY parameters alpha_r, alpha_y, and beta
+    b = 1.0 / (2.0 * pi_r * pi_y * (1.0+ratio))
+      = 1.0 / (2.0 * .5 * .5 * (1.0+.5))
+      = 1.0 / (3/4) = 4/3
+
+    a_y = (pi_r*pi_y*ratio - 
+           pi[DNA_A]*pi[DNA_G] - 
+           pi[DNA_C]*pi[DNA_T]) / 
+        (2.0*(1+ratio)*(pi_y*pi[DNA_A]*pi[DNA_G]*rho + 
+                        pi_r*pi[DNA_C]*pi[DNA_T]))
+        = (.5*.5*.5 - 
+           .25*.25 - 
+           .25*.25) / 
+           (2.0*(1+.5)*(.5*.25*.25*1 + .5*.25*.25))
+        = (1/8 - 1/16 - 1/16) / (2.0*(1+.5)*(.5*.25*.25*1 + .5*.25*.25))
+        = 0;
+
+    a_r = rho * a_y = 0;
+
+*/
+
 // transition probability P(j | i, t)
 void HkyModel::getMatrix(float t, float *matrix)
 {
@@ -243,7 +278,7 @@ void HkyModel::getMatrix(float t, float *matrix)
             // convenience variables
             // NOTE: it is ok to assign pi_ry, because it is only used when
             // dnatype[i] == dnatype[j]
-            float a_i, pi_ry;
+            double a_i, pi_ry;
             switch (dnatype[i]) {
             case DNA_PURINE:
                 a_i = a_r;
@@ -260,15 +295,16 @@ void HkyModel::getMatrix(float t, float *matrix)
             int e_ij = int(dnatype[i] == dnatype[j]);
         
             // return transition probability
-            float ait = expf(-a_i*t);
-            float ebt = expf(-b*t);
-        
+            double ait = exp(-a_i*t);
+            double ebt = exp(-b*t);
+
             matrix[matind(4,i,j)] = ait*ebt * delta_ij + 
                 ebt * (1.0 - ait) * (pi[j]*e_ij/pi_ry) + 
-                (1 - ebt) * pi[j];
+                (1.0 - ebt) * pi[j];
         }
     }
 }
+
 
 HkyModel::Deriv *HkyModel::deriv()
 {

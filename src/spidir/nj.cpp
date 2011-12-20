@@ -1,5 +1,12 @@
-//=============================================================================
-// phylogeny functions
+/*=============================================================================
+
+  Matt Rasmussen
+  Copyright 2007-2011
+
+  Neighbor-joining algorithm
+
+=============================================================================*/
+
 
 #include "common.h"
 #include "Matrix.h"
@@ -11,6 +18,22 @@ namespace spidir {
 // Neighbor-joining algorithm
 void neighborjoin(int ngenes, float **distmat, int *ptree, float *branches)
 {
+    // special cases
+    if (ngenes == 1) {
+        ptree[0] = -1;
+        branches[0] = 0.0;
+        return;
+    } else if (ngenes == 2) {
+        ptree[0] = 2;
+        ptree[1] = 2;
+        ptree[2] = -1;
+        branches[0] = distmat[0][1] / 2.0;
+        branches[1] = distmat[0][1] / 2.0;
+        branches[2] = 0.0;
+        return;
+    }
+
+
     Matrix<float> dists(ngenes*2-1, ngenes*2-1);
     float *restdists = new float [ngenes*2-1];
     int *leaves = new int [ngenes];
