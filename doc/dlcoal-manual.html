@@ -1,0 +1,403 @@
+<!doctype html> 
+<html>
+<head>
+  <title>DLCoal documentation</title>
+  <link type="text/css" rel="stylesheet" href="manual.css">
+</head>
+
+<body>
+
+<!-- ====================================================================== -->
+<div class="titlepage">
+
+<h1>
+DLCoal: Modeling gene duplications, losses, and coalescence
+</h1>
+
+<h2>
+Documentation for the SPIMAP software package
+</h2>
+
+<h3>
+Updated: Dec 15, 2011
+</h2>
+
+<b>Author:</b> Matthew D. Rasmussen (<a href="http://mattrasmus.com">mattrasmus.com</a>, <a href="mailto:rasmus@alum.mit.edu">rasmus@alum.mit.edu</a>, <a href="mailto:matt.rasmus@gmail.com">matt.rasmus@gmail.com</a>)<br>
+<b>Software website:</b> <a href="http://compbio.mit.edu/dlcoal">http://compbio.mit.edu/dlcoal</a>
+
+<br><br>
+
+<b>citation:</b>
+Matthew D. Rasmussen and Manolis Kellis.
+<i>A unified model for gene duplication, loss, and coalescence using a locus tree</i>.
+in prep. 2012.
+
+<br><br>
+
+<hr>
+
+<br><br>
+
+</div>
+
+
+<!-- ====================================================================== -->
+<h2>Introduction</h2>
+
+<p>
+This documention is currently under development and will be regularly 
+updated with more information about the DLCoal software package.
+</p>
+
+<!-- ===================================================================== -->
+<h2>Programs</h2>
+
+
+<a name="sec-prog-dlcoal_recon"></a>
+<h3>dlcoal_recon</h3>
+
+
+<!-- ====================================================================== -->
+<a name="sec:prepare"></a>
+<h2>Preparing your data set</h2>
+
+
+<p>
+<b>Restrictions on gene IDs and species IDs.</b>  Due to the
+file formats that DLCoal uses, there as several restrictions on what IDs
+are allowed.  Many of these restrictions are common for other similar
+phylogenetic software.  The safest IDs follow these restrictions:
+</p>
+
+<ol>
+<li>the first and last characters of the ID are <tt>a-z A-Z 0-9 _ - .</tt></li>
+<li>the middle characters can be <tt>a-z A-Z 0-9 _ - .</tt> or the space character <tt>' '</tt>.</li>
+<li>the ID should not be purely numerical characters 0-9</li>
+<li>the ID should be unique within a gene tree or within a species tree</li>
+</ol>
+
+<p>
+Space characters are discouraged from gene IDs and species IDs since
+they will probably cause problems with other bioinfomatic software
+that you may use (although DLCoal can handle spaces).  Characters
+such as parentheses "(" ")" and colons ":" are not allowed
+because the <a href="#sec-file-stree">newick file format</a> uses these
+characters for describing the structure of the tree.
+</p>
+
+<p>
+It is also easier to use gene IDs that have a prefix or suffix that indicates
+the species ID.  For example "human_HOXC5" is a human gene.  This is not
+a requirement, but it does make preparing a <a href="#sec-file-smap">gene to 
+species mapping file (*.smap)</a> easier.
+</p>
+
+
+
+
+<!-- ====================================================================== -->
+<h2>File formats</h2>
+
+<!-- ====================================================================== -->
+<a name="sec-file-stree"></a>
+<h3>Species tree file format (*.stree)</h3>
+
+
+<p>
+Species trees should be specified using the 
+<a href="http://en.wikipedia.org/wiki/Newick_format">Newick file
+format</a>.  Beyond the newick format, DLCoal has only a few
+additional requirements.  First, the species names given in the
+species tree should match those given in
+the <a href="#sec-file-smap">SMAP file</a>.  Second, the branch
+lengths of the species tree should be expressed in units of time
+(see <a href="#fig-stree">figure</a>).  Any unit of time can be used
+(e.g. millions of years, generations, relative units, etc).  The only
+requirement is that the duplication and loss rates are also expressed
+in compatible units.  Therefore, if branch lengths are in <em>
+millions of years</em>, the duplication rate (specified by <tt>spimap</tt>'s
+"-D" option) should be in units of duplications/gene/<em>million
+years</em>.
+</p>
+
+<p>
+<b>Naming ancestral nodes.</b>
+DLCoal also supports naming ancestral nodes in the species tree using
+the newick format.  For example, the parental node of <tt>human</tt> and 
+<tt>chimp</tt> can be named <tt>primate</tt> using the following syntax:
+</p>
+
+<div class="code">
+((human:5,chimp:5)primate:70,mouse:75)mammal;
+</div>
+
+<p>
+If ancestral nodes are named, they will be used in the output of the 
+<a href="#sec-file-recon">reconciliation mapping</a>.
+</p>
+
+<div class="figure">
+
+<a name="fig-stree"></a>
+<div class="code"><pre>
+(((((((scer:7.061760,
+       spar:7.061760
+      )n7:4.999680,
+      smik:12.061440
+     )n6:5.970600,
+     sbay:18.032040
+    )n5:52.682400,
+    cgla:70.714260
+   )n4:7.220700,
+   scas:77.934960
+  )n3:23.181480,
+  (
+   (
+    agos:78.553260,
+    klac:78.553260
+   )n9:10.434960,
+   kwal:88.988220
+  )n8:12.128400
+ )n2:78.883560,
+ (
+  (
+   (
+    calb:41.275620,
+    ctro:41.275980
+   )n12:29.632860,
+   (
+    cpar:52.323120,
+    lelo:52.323120
+   )n13:18.585720
+  )n11:31.149540,
+  (
+   (
+    cgui:75.615840,
+    dhan:75.615840
+   )n15:14.006880,
+   clus:89.622720
+  )n14:12.435660
+ )n10:77.941620
+)n1;
+</pre>
+</div>
+
+<img src="figures/fungi-stree.png">
+
+<div class="figcaption">
+<span class="figtitle">Figure: Example *.stree file and corresponding
+ tree.</span>  This file (top) specifies the species tree (bottom)
+ using the newick file format.  Branch lengths should be expressed in
+ units of time (e.g. millions of years).  Ancestral nodes can also
+ optionally be named (the names "n1", "n2", etc are used in this
+ example).
+</div>
+</div>
+
+
+<!-- ====================================================================== -->
+<a name="sec-file-smap"></a>
+<h3>Gene to species name mapping file format (*.smap)</h3>
+
+
+<p>
+DLCoal uses a special file format (*.smap) to specify which
+genes belong to which species. Each line contains two tab-delimited
+fields: 
+</p>
+
+<ol>
+  <li> pattern matching a gene ID</li>
+  <li> species ID</li>
+</ol>
+
+<p>
+Only 3 types of gene ID patterns are supported.  The pattern can
+either be an exact matching string, a prefix (denoted <tt>"text*"</tt>),
+or a suffix (denoted <tt>"*text"</tt>).  The <tt>"*"</tt> is the only special
+wildcard character.
+</p>
+
+<p>
+The species ID should be the same as those used in the species tree.
+All patterns and IDs are case-sensitive.
+</p>
+
+<p>
+When mapping a gene ID to a species ID all exact matches are processed
+first.  If no exact match is found, the patterns are then processed in
+the same order as they appear in the file until a match is found. For
+example in the SMAP file given <a href="#fig-smap">below</a>, the gene
+ID <tt>"YALI123"</tt> should match the species <tt>"ylip"</tt>,
+instead of <tt>"scer"</tt>, because the pattern <tt>"YALI*"</tt> occurs before 
+<tt>"Y*"</tt>.
+</p>
+
+<a name="fig-smap"></a>
+<div class="figure">
+
+<div class="code"><pre>
+A*      agos
+orf19*  calb
+CDUG_*  cdub
+CAGL*   cgla
+IPF_*   cgla
+CGUG_*  cgui
+sbay_*  sbay
+scas_*  scas
+smik_*  smik
+spar_*  spar
+SCP*    spom
+YALI*   ylip
+Y*      scer
+Q*      scer
+</pre></div>
+
+<div class="figcaption">
+<span class="figtitle">Example *.smap file.</span> This file specifies
+how to map gene names to their corresponding species.  The first
+column indicates a gene name pattern (in this case a prefix) and the
+second column specifies a species name.  Note: this example only gives
+a partial list of the species in the <a href="#fig-stree">species tree
+above</a>.
+</div>
+</div>
+
+<!-- ====================================================================== -->
+<a name="sec-file-recon"></a>
+<h3>Reconciliation file format (*.recon)</h3>
+
+
+<p>
+When DLCoal's "-r" option is used, the reconciliation found for the
+gene tree and species is saved to a file <tt>"OUTPUT_PREFIX.recon"</tt> 
+(see <a href="#fig-recon">reconcile example</a>).  The reconciliation file
+format is tab-delimited, where each line has three fields:
+</p>
+
+<ol>
+  <li>gene node ID.</li>
+  <li>species node ID.</li>
+  <li>event (one of the following: <tt>"gene"</tt>, <tt>"spec"</tt>, <tt>"dup"</tt>)</li>
+</ol>
+
+<p>
+Each line specifies the mapping of one node in the gene tree (field 1) to one 
+node or branch in the species tree (field 2).  Branches are indicate using
+the node ID directly below it (i.e. the younger of the two incident nodes).
+The lines can be given in any order.
+</p>
+
+<p>
+If the gene node is a leaf, it will map to a leaf in the species tree
+and the event field will contain the event <tt>"gene"</tt>.  All
+internal nodes of the gene tree are marked either as speciations
+(event <tt>"spec"</tt>) or duplications (event <tt>"dup"</tt>).
+Specaition nodes map directly to the indicated species node, and
+duplication nodes map to the indication species branch.  The time of
+the duplication along the species branch is not indicated in this file
+format nor is it inferred by DLCoal.
+</p>
+
+<p>
+If gene IDs are not given to the ancestral nodes of a gene tree or
+species tree, DLCoal will by default name them with <tt>"nXXX"</tt>
+where <tt>XXX</tt> is the preorder traversal of the internal nodes.
+</p>
+
+
+<a name="fig-recon"></a>
+<div class="figure">
+
+<div class="code"><pre>
+KLLA0C08239g  klac  gene  
+ADL072C       agos  gene  
+kwal_5828     kwal  gene  
+CAGL0J02970g  cgla  gene  
+scas_g715.48  scas  gene  
+smik_6662     smik  gene  
+sbay_7039     sbay  gene  
+smik_6659     smik  gene  
+sbay_7037     sbay  gene  
+YER061C       scer  gene  
+spar_6281     spar  gene  
+n10           n5    spec  
+n9            n7    spec  
+n8            n6    spec  
+n7            n5    spec  
+n6            n5    dup   
+n5            n3    spec  
+n4            n3    spec   
+n3            n9    spec  
+n2            n8    spec  
+n1            n2    spec  
+</pre></div>
+
+<img src="figures/gene-tree.png">
+
+<div class="figcaption">
+<span class="figtitle">Figure: Example *.recon file.</span> The
+reconciliation file format (top) specifies how all the nodes in a
+gene tree (bottom) map to the nodes and branches in the species tree
+(see <a href="#fig-stree">species tree example</a>).  Notice that gene
+node "n6" (red dot) represents a duplication event along species
+branch "n5" (shown in the <a href="#fig-stree">species tree
+example</a>).  The gene tree and species tree have their own name
+space (e.g. "n5" in the gene tree is not the same as "n5" in the species
+tree).
+</div>
+</div>
+
+
+<!-- ====================================================================== -->
+<a name="sec-file-rel"></a>
+<h3>Gene relationship file format (*.rel.txt)</h3>
+
+<p>
+After reconciling a gene tree, the <tt>tree-relations</tt> program can be
+used to determine the relationship (i.e. orthology, paralogy, etc) between
+genes in a gene family.  These relationships are stored in a special
+file format called a <em>relations file</em>.
+</p>
+
+
+<a name="fig-recon"></a>
+<div class="figure">
+
+<div class="code"><pre>
+100.yeast.tree	gene	YER061C
+100.yeast.tree	gene	spar_6281
+100.yeast.tree	gene	smik_6662
+100.yeast.tree	gene	sbay_7039
+100.yeast.tree	gene	smik_6659
+100.yeast.tree	gene	sbay_7037
+100.yeast.tree	gene	CAGL0J02970g
+100.yeast.tree	gene	scas_g715.48
+100.yeast.tree	gene	kwal_5828
+100.yeast.tree	gene	ADL072C
+100.yeast.tree	gene	KLLA0C08239g
+100.yeast.tree	spec	sbay_7037	smik_6659	n5
+100.yeast.tree	spec	YER061C,spar_6281	smik_6662	n6
+100.yeast.tree	spec	YER061C	spar_6281	n7
+100.yeast.tree	dup	YER061C,sbay_7039,smik_6662,spar_6281	sbay_7037,smik_6659	5
+100.yeast.tree	spec	ADL072C,KLLA0C08239g,kwal_5828	CAGL0J02970g,YER061C,sbay_7037,sbay_7039,scas_g715.48,smik_6659,smik_6662,spar_6281	n2
+100.yeast.tree	spec	ADL072C,KLLA0C08239g	kwal_5828	n8
+100.yeast.tree	spec	ADL072C	KLLA0C08239g	n9
+100.yeast.tree	spec	CAGL0J02970g,YER061C,sbay_7037,sbay_7039,smik_6659,smik_6662,spar_6281	scas_g715.48	n3
+100.yeast.tree	spec	CAGL0J02970g	YER061C,sbay_7037,sbay_7039,smik_6659,smik_6662,spar_6281	n4
+100.yeast.tree	spec	YER061C,smik_6662,spar_6281	sbay_7039	n5
+100.yeast.tree	loss	smik_6659	n7
+</pre></div>
+
+
+<img src="figures/gene-tree.png">
+
+<div class="figcaption">
+<span class="figtitle">Figure: Example relations *.rel.txt file.</span>
+</div>
+</div>
+
+
+
+</body>
+</html>
