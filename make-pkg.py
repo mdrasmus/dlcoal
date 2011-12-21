@@ -3,6 +3,7 @@
 
 files = ["bin",
          "dlcoal",
+         "doc",
          "src",
          "examples",
 
@@ -11,7 +12,7 @@ files = ["bin",
          "setup.py",
          "README.txt"]
 
-exclude = [".*\.o$", "src/old/.*", "^bin/spimap$"]
+exclude = [".*\.o$", ".*\.pyc$", ".*\.pyo"]
 
 include = ["lib"]
 

@@ -100,3 +100,9 @@ See examples/make.sh for an example of how to use each program
 in the DLCoal package.
 
 
+#=============================================================================
+# Documentation
+
+See doc/dlcoal-manual.html for further documentation of the software and
+its associated file-formats.
+
