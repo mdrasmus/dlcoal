@@ -28,8 +28,12 @@ body > h2 {
   text-shadow: 1px 1px 0px #fff;
 }
 
-h3, h4, h5 {
+h3 {
   color: #000;
+}
+
+h4, h5 {
+  color: #55a;
 }
 
 .figure {
