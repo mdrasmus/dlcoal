@@ -56,6 +56,12 @@ the various <a href="#sec-file">file formats</a> that are used.
 </p>
 
 <p>
+For an example of how to run these programs see
+the <a href="../examples/">examples</a> directory
+(e.g. <a href="../examples/analyze-sim-flies.sh">analyze-sim-flies.sh</a>).
+</p>
+
+<p>
 <em>Note: This documentation is currently under development and
 will be regularly updated with more information.</em>
 </p>
@@ -298,10 +304,134 @@ file format</a>.</li>
 <a name="sec-prog-tree-relations"></a>
 <h3>tree-relations</h3>
 
+<p>
+The <tt>tree-relations</tt> program reads from standard input a list of
+gene tree filenames (one filename per line) and outputs to standard output
+a <a href="#sec-file-recon">relation file (*.rel.txt)</a>.
+</p>
+
+
+<div class="code">
+  -d, --dir
+</div>
+
+<p>
+  When given, the directory name containing the gene tree is used as the
+  family id (column 1).
+</p>
+
+<div class="code">
+  -s SPECIES_TREE, --stree=SPECIES_TREE
+</div>
+
+<p>
+  This specifies the <a href="#sec-file-stree">species tree</a>
+  in <a href="http://en.wikipedia.org/wiki/Newick_format">Newick
+  format</a>.
+</p>
+
+
+<div class="code">
+  -S GENE_TO_SPECIES_MAP, --smap=GENE_TO_SPECIES_MAP
+</div>
+
+<p>
+  This specifies a <a href="#sec-file-smap">gene to species map</a>.
+</p>
+
+
+<div class="code">
+  -T TREE_EXT, --treeext=TREE_EXT
+</div>
+
+<p>
+  This specifies the file extension of the input gene tree.
+</p>
+
+<div class="code">
+  -R RECON_EXT, --reconext=RECON_EXT
+</div>
+
+<p>
+  If given, this specifies the file extension of
+  the <a href="#sec-file-recon">reconciliation mapping</a>.  The
+  reconciliation mapping file is determined by removing the tree
+  file extension and appending the reconciliation file extension.
+</p>
+
+
+<div class="code">
+  --no-species-branch   
+</div>
+
+<p>
+  If given, this suppresses the <tt>species id</tt> column in the 
+  duplication columns.
+</p>
+
+
+<div class="code">
+  -h, --help
+</div>
+
+<p>
+  If given, show the help message.
+</p>
+
 
 <a name="sec-prog-tree-relations-cmp"></a>
 <h3>tree-relations-cmp</h3>
 
+<p>
+The <tt>tree-relations-cmp</tt> program takes two 
+<a href="#sec-file-rel">relation files</a> and compares them. 
+Specifically, the program takes two arguments:
+</p>
+
+<div class="code">
+  tree-relations-cmp FILE1.rel.txt FILE2.rel.txt
+</div>
+
+<p>
+<tt>FILE1.rel.txt</tt> should be a <a href="#sec-file-rel">relation
+file</a> that describes the <em>true</em> relationships within a gene
+family or series of gene families (i.e. the actual relationships
+determined from simulated data).  <tt>FILE2.rel.txt</tt> gives the
+relations reconstructed by a program like <tt>dlcoal_recon</tt>.  The
+output of the program will look something like the following:
+</p>
+
+<div class="code"><pre>
+dup actual:     46
+dup pred:       49
+dup sn:         0.95652173913
+dup ppv:        0.897959183673
+loss actual:    34
+loss pred:      43
+loss sn:        0.970588235294
+loss ppv:       0.767441860465
+orth actual:    6856
+orth pred:      6758
+orth sn:        0.985414235706
+orth ppv:       0.999704054454
+</pre>
+</div>
+
+<p>
+This output describes the performance of the reconciliation algorithm compared
+to the truth.  Performance is measured for gene duplications (dup), gene 
+losses (loss), and orthologs (orth).  For each type of event or relationship,
+both the actual and predicted (pred) counts are reported.  In addition,
+the sensitivity (sn)
+and the positive predictive value (ppv; also known as precision) are given.
+</p>
+
+<p>
+<em>
+Note: sensitivity = true positives / (true positives + false negatives).
+precision = true positives / (true positives + false positives).
+</em>
+</p>
 
 
 <!-- ====================================================================== -->
