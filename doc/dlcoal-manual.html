@@ -19,7 +19,7 @@ Documentation for the DLCoal software package
 </h2>
 
 <h3>
-Updated: Dec 15, 2011
+Updated: Dec 21, 2011
 </h2>
 
 <b>Author:</b> Matthew D. Rasmussen (<a href="http://mattrasmus.com">mattrasmus.com</a>, <a href="mailto:rasmus@alum.mit.edu">rasmus@alum.mit.edu</a>, <a href="mailto:matt.rasmus@gmail.com">matt.rasmus@gmail.com</a>)<br>
@@ -45,16 +45,250 @@ in prep. 2012.
 <h2>Introduction</h2>
 
 <p>
-This documention is currently under development and will be regularly 
-updated with more information about the DLCoal software package.
+The DLCoal software package contains several programs reconciling gene
+trees and inferring their gene duplications and losses.  The concepts
+and algorithms behind the main
+program, <a href="#sec-prog-dlcoal_recon"><tt>dlcoal_recon</tt></a>,
+are presented in our <a href="#cite-Rasmussen2012">DLCoal paper</a>.
+This documentation describes how to use each of
+the <a href="#sec-prog">programs</a> in the software package and defines
+the various <a href="#sec-file">file formats</a> that are used.
 </p>
 
+<p>
+<em>Note: This documentation is currently under development and
+will be regularly updated with more information.</em>
+</p>
+
+
 <!-- ===================================================================== -->
+<a name="sec-prog"></a>
 <h2>Programs</h2>
 
 
 <a name="sec-prog-dlcoal_recon"></a>
 <h3>dlcoal_recon</h3>
+
+<p>
+<tt>dlcoal_recon</tt> is a program that takes a previously
+reconstructed gene tree and a species tree and produces
+a <em>reconciliation</em>, a data-structure that describes how the
+gene tree "fits inside" the species tree.  From this data structure, one
+can infer gene duplications, losses, and incomplete lineage sorting.
+Typically, reconciliation is represented as mapping of nodes in a gene tree
+to the nodes and edges of the species tree.  However,  DLCoal uses a
+<a href="#fig-three-trees">three-tree model</a> (gene tree, locus
+tree, and species tree) to represent gene family evolution.  Therefore
+the reconciliation data structure is more than just a single mapping.
+Instead it is represented as a tuple of four variables: the locus tree
+T<sup>L</sup>, the gene-to-locus tree mapping R<sup>G</sup>, the
+locus-to-species mapping R<sup>L</sup>, and the set of daughter nodes
+&delta;<sup>L</sup>.
+</p>
+
+<a name="fig-three-trees"></a>
+<div class="figure">
+
+<img src="figures/three-trees.png">
+
+<div class="figcaption">
+<span class="figtitle">Figure: DLCoal's three tree model.</span>
+DLCoal assumes a generative process for gene family evolution that
+follows the following steps.  Given a species tree S with known
+topology and divergence times, a top-down dup-loss process generates a
+locus tree T<sup>L</sup> , which contains duplication nodes (star) and
+each daughter duplicate is indicated by a daughter edge
+&delta;<sup>L</sup> (dark red). From the locus tree, the bottom-up
+multilocus coalescent (MLC) process generates a gene tree
+T<sup>G</sup>. Mappings between the trees represented by R<sup>G</sup>
+and R<sup>L</sup> indicate how one tree "fits inside" the other.
+</div>
+</div>
+
+
+
+<h4>Main arguments</h4>
+
+<div class="code">
+  -s SPECIES_TREE, --stree=SPECIES_TREE
+</div>
+
+<p>
+  This specifies the <a href="#sec-file-stree">species tree</a>
+  in <a href="http://en.wikipedia.org/wiki/Newick_format">Newick
+  format</a>.  The branch lengths should be specified in millions of years
+  (myr).
+</p>
+
+<div class="code">
+  -S GENE_TO_SPECIES_MAP, --smap=GENE_TO_SPECIES_MAP
+</div>
+
+<p>
+This specifies a <a href="#sec-file-smap">gene to species map</a>.
+</p>
+
+<div class="code">
+  -n POPULATION_SIZE, --popsize=POPULATION_SIZE
+</div>
+
+<p>
+This specifies an effective population size N<sub>e</sub> to use for every
+branch in the species tree.  Branch-specific population sizes are 
+also <a href="#sec-file-stree-popsize">possible</a>.
+</p>
+
+<div class="code">
+  -D DUPLICATION_RATE, --duprate=DUPLICATION_RATE
+</div>
+
+<p>
+  This specifies the rate of a gene duplication (dups/gene/myr) present
+  throughout all branches of the species tree.
+</p>
+
+<div class="code">
+  -L LOSS_RATE, --lossrate=LOSS_RATE
+</div>
+
+<p>
+  This specifies the rate of a gene loss (losses/gene/myr) present
+  throughout all branches of the species tree.
+</p>
+
+<div class="code">
+  -g GENRATION_TIME, --gentime=GENRATION_TIME
+</div>
+
+<p>
+  This specifies the generation time (years) present throughout all branches
+  of the species tree.  Branch-specific generation times are also 
+  <a href="#sec-file-stree-gentime">possible</a>.
+</p>
+
+<div class="code">
+  -i ITERATIONS, --iter=ITERATIONS
+</div>
+
+<p>
+  This specifies the number of search iterations to perform
+</p>
+
+
+<h4>File extensions</h4>
+
+<div class="code">
+    -I INPUT_EXT, --inext=INPUT_EXT
+</div>
+
+<p>
+  This specifies the input file extension (default='') of the gene
+  tree.  This extension will be stripped from the input filename in
+  order to determine the output file prefix <tt>"PREFIX"</tt>.
+</p>
+
+<div class="code">
+    -O OUTPUT_EXT, --outext=OUTPUT_EXT
+</div>
+
+<p>
+  This specifies the output file extension (default='.dlcoal') for all
+  output files.  Every output file will have the
+  form <tt>"$PREFIX$OUTPUT_EXT.*"</tt>
+  (e.g. <tt>"my_input_prefix.dlcoal.locus.recon"</tt>).
+</p>
+
+
+
+<h4>Miscellaneous</h4>
+
+<div class="code">
+    --nprescreen=NUM_PRESCREENS
+</div>
+
+<p>
+  This specifies the number of prescreening iterations to use in the locus tree
+  search (default=50).
+</p>
+
+<div class="code">
+    --nsamples=NUM_SAMPLES
+</div>
+
+<p>
+  This specifies the number of samples for dup-loss integration
+  (default=100)
+</p>
+
+<div class="code">
+    --init-locus-tree=TREE_FILE
+</div>
+
+<p>
+  This specifies the initial locus tree for search.  By default the 
+  gene tree topology is used as the initial locus tree.
+</p>
+
+<div class="code">
+    -x RANDOM_SEED, --seed=RANDOM_SEED
+</div>
+
+<p>
+  This specifies the seed for the random number generator.  This allows one
+  to produce deterministic results.
+</p>
+
+<div class="code">
+    -l, --log           if given, output debugging log
+</div>
+
+<p>
+Outputs logging information to a log file <tt>*.log</tt>.
+</p>
+
+
+<div class="code">
+  -h, --help
+</div>
+
+<p>
+Displays a help message
+</p>
+
+
+
+<a name="sec-prog-dlcoal_recon-output"></a>
+<h4>dlcoal_recon output files</h3>
+
+<p>
+DLCoal represents the reconciliation as a tuple of four variables: the
+locus tree T<sup>L</sup>, the gene-to-locus tree mapping
+R<sup>G</sup>, the locus-to-species mapping R<sup>L</sup>, and the set
+of daughter nodes &delta;<sup>L</sup>.  Each of these variables is
+store in one of the following four output files.
+</p>
+
+<ul>
+  <li><tt>*.locus.tree</tt>: a locus tree stored in <a href="http://en.wikipedia.org/wiki/Newick_format">Newick format</a>.</li>
+  <li><tt>*.coal.recon</tt>: a mapping between the gene tree (*.coal.tree) and the locus tree (*.locus.tree) stored in the <a href="#sec-file-recon">*.recon
+file format</a>.</li>
+  <li><tt>*.locus.recon</tt>: a mapping between the locus tree (*.locus.tree) and the species tree (*.stree) stored in the <a href="#sec-file-recon">*.recon
+file format</a>.</li>
+  <li><tt>*.dlcoal.daughters</tt>: a set of daughter nodes stored
+    in <a href="#sec-file-daughters">*.daughters file format</a>.</li>
+</ul>
+
+
+<tt>dlcoal_recon</tt> also produces two more output files:
+
+<ul>
+  <li><tt>*.coal.tree</tt>: a copy of the gene tree with the 
+  internals given names.  This file is created in case the original input 
+    gene tree file did not specify internal node names.</li>
+  <li><tt>*.log</tt>: a log file that describes the various 
+  reconciliations proposed during the reconciliation search.</li>
+</ul>
+
 
 
 <a name="sec-prog-dlcoal_sim"></a>
@@ -71,7 +305,7 @@ updated with more information about the DLCoal software package.
 
 
 <!-- ====================================================================== -->
-<a name="sec:prepare"></a>
+<a name="sec-prepare"></a>
 <h2>Preparing your data set</h2>
 
 
@@ -109,7 +343,9 @@ species mapping file (*.smap)</a> easier.
 
 
 <!-- ====================================================================== -->
+<a name="sec-file"></a>
 <h2>File formats</h2>
+
 
 <!-- ====================================================================== -->
 <a name="sec-file-stree"></a>
@@ -149,9 +385,9 @@ If ancestral nodes are named, they will be used in the output of the
 <a href="#sec-file-recon">reconciliation mapping</a>.
 </p>
 
+<a name="fig-stree"></a>
 <div class="figure">
 
-<a name="fig-stree"></a>
 <div class="code"><pre>
 (((((((scer:7.061760,
        spar:7.061760
@@ -206,6 +442,18 @@ If ancestral nodes are named, they will be used in the output of the
  example).
 </div>
 </div>
+
+
+<a name="sec-file-stree-popsize"></a>
+<h4>Branch-specific population sizes</h4>
+
+XXX
+
+
+<a name="sec-file-stree-gentime"></a>
+<h4>Branch-specific generation times</h4>
+
+XXX
 
 
 <!-- ====================================================================== -->
@@ -267,12 +515,12 @@ Q*      scer
 </pre></div>
 
 <div class="figcaption">
-<span class="figtitle">Example *.smap file.</span> This file specifies
-how to map gene names to their corresponding species.  The first
-column indicates a gene name pattern (in this case a prefix) and the
-second column specifies a species name.  Note: this example only gives
-a partial list of the species in the <a href="#fig-stree">species tree
-above</a>.
+<span class="figtitle">Figure: Example *.smap file.</span> This file
+specifies how to map gene names to their corresponding species.  The
+first column indicates a gene name pattern (in this case a prefix) and
+the second column specifies a species name.  Note: this example only
+gives a partial list of the species in
+the <a href="#fig-stree">species tree above</a>.
 </div>
 </div>
 
@@ -282,8 +530,9 @@ above</a>.
 
 
 <p>
-When DLCoal's "-r" option is used, the reconciliation found for the
-gene tree and species is saved to a file <tt>"OUTPUT_PREFIX.recon"</tt> 
+The <a href="#sec-prog-dlcoal_recon"><tt>dlcoal_recon</tt></a> and
+<a href="#sec-prof-mpr"><tt>mpr</tt></a> programs both produce reconciliation 
+mappings which are stored in the reconciliation file format (*.recon)
 (see <a href="#fig-recon">reconcile example</a>).  The reconciliation file
 format is tab-delimited, where each line has three fields:
 </p>
@@ -291,7 +540,7 @@ format is tab-delimited, where each line has three fields:
 <ol>
   <li>gene node ID.</li>
   <li>species node ID.</li>
-  <li>event (one of the following: <tt>"gene"</tt>, <tt>"spec"</tt>, <tt>"dup"</tt>)</li>
+  <li>event (one of the following: <tt>"gene"</tt>, <tt>"spec"</tt>, <tt>"dup"</tt>, <tt>"none"</tt>)</li>
 </ol>
 
 <p>
@@ -309,7 +558,8 @@ internal nodes of the gene tree are marked either as speciations
 Specaition nodes map directly to the indicated species node, and
 duplication nodes map to the indication species branch.  The time of
 the duplication along the species branch is not indicated in this file
-format nor is it inferred by DLCoal.
+format nor is it inferred by DLCoal.  If the event is unknown or represents
+coalescence the <tt>"none"</tt> keyword is used in column 3.
 </p>
 
 <p>
@@ -360,6 +610,34 @@ space (e.g. "n5" in the gene tree is not the same as "n5" in the species
 tree).
 </div>
 </div>
+
+
+<h4>Special notes about DLCoal's use of reconciliation mappings</h4>
+
+<p>
+As we discuss in the <a href="#cite-Rasmussen2012">DLCoal paper</a>,
+DLCoal uses a <a href="#fig-three-trees">three-tree model</a> of gene
+family evolution (gene tree, locus tree, species tree).
+<a href="#sec-prog-dlcoal_recon"><tt>dlcoal_recon</tt></a> constructs
+mappings between the gene tree and locus tree as well as between the 
+locus tree and species tree.  Both of these mappings are stored in
+the reconciliation file format (*.recon).  For more information on how to
+interpret these mappings see 
+<a href="#sec-prog-dlcoal_recon-output">dlcoal_recon output files</a>.
+</p>
+
+
+<!-- ====================================================================== -->
+<a name="sec-file-daughters"></a>
+<h3>Daughter nodes file format (*.daughters)</h3>
+
+<p>
+Part of DLCoal's reconciliation representation is the set of daughter
+nodes &delta;<sup>L</sup> in the locus tree T<sup>L</sup>.  This
+set is stored in a very simple file format (*.daughters).  Each line of a
+a *.daughters file contains one locus node id that belongs to the daughter
+set.  The node ids can be specified in any order.
+</p>
 
 
 <!-- ====================================================================== -->
@@ -460,6 +738,7 @@ subtrees. Therefore, every pair of genes from column 3 and column 4 is
 a paralog pair.
 </p>
 
+
 <h4>loss relationship</h4>
 
 <p>
@@ -478,6 +757,7 @@ an addition branch was expected to branch off, but is not present because it
 has been lost.  Column 4 gives the species branch in which the gene loss
 occurred.
 </p>
+
 
 <h4>Complete example</h4>
 
@@ -552,6 +832,13 @@ relation files if we have the same values for columns 3 and
 4 (and optionally 5) for a "dup" relation in both relation files.
 </p>
 
+
+<!-- ====================================================================== -->
+<h2>References</h2>
+
+<ul>
+  <li><a name="cite-Rasmussen2012"></a>Matthew D. Rasmussen and Manolis Kellis. A unified model for gene duplication, loss, and coalescence using a locus tree. in prep. 2012.</li>
+</ul>
 
 </body>
 </html>
