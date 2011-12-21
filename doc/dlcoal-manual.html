@@ -15,7 +15,7 @@ DLCoal: Modeling gene duplications, losses, and coalescence
 </h1>
 
 <h2>
-Documentation for the SPIMAP software package
+Documentation for the DLCoal software package
 </h2>
 
 <h3>
@@ -55,6 +55,19 @@ updated with more information about the DLCoal software package.
 
 <a name="sec-prog-dlcoal_recon"></a>
 <h3>dlcoal_recon</h3>
+
+
+<a name="sec-prog-dlcoal_sim"></a>
+<h3>dlcoal_sim</h3>
+
+
+<a name="sec-prog-tree-relations"></a>
+<h3>tree-relations</h3>
+
+
+<a name="sec-prog-tree-relations-cmp"></a>
+<h3>tree-relations-cmp</h3>
+
 
 
 <!-- ====================================================================== -->
@@ -115,9 +128,9 @@ lengths of the species tree should be expressed in units of time
 (e.g. millions of years, generations, relative units, etc).  The only
 requirement is that the duplication and loss rates are also expressed
 in compatible units.  Therefore, if branch lengths are in <em>
-millions of years</em>, the duplication rate (specified by <tt>spimap</tt>'s
-"-D" option) should be in units of duplications/gene/<em>million
-years</em>.
+millions of years</em>, the duplication rate (specified
+by <tt>dlcoal_recon</tt>'s "-D" option) should be in units of
+duplications/gene/<em>million years</em>.
 </p>
 
 <p>
@@ -354,14 +367,129 @@ tree).
 <h3>Gene relationship file format (*.rel.txt)</h3>
 
 <p>
-After reconciling a gene tree, the <tt>tree-relations</tt> program can be
-used to determine the relationship (i.e. orthology, paralogy, etc) between
-genes in a gene family.  These relationships are stored in a special
-file format called a <em>relations file</em>.
+After reconciling a gene tree,
+the <a href="#sec-prog-tree-relations"><tt>tree-relations</tt></a>
+program can be used to determine the relationship (i.e. orthology,
+paralogy, etc) between genes in a gene family.  These relationships
+are stored in a special file format called a <em>relation file
+(*.rel.txt)</em>.  The file format is tab-delimited and has the following
+columns:
 </p>
 
+<ol>
+<li>famid</li>
+<li>relationship type (one of "gene", "spec", "dup", "loss")</li>
+<li>relationship type specific data, see below</li>
+<li>all additional columns are also relationship type specific</li>
+</ol>
 
-<a name="fig-recon"></a>
+<p>
+Each row specifies one "relationship" between sets of genes. The kind
+of relationship is indicated by column 2 (relationship type) and are
+defined as follows.</p>
+
+<h4>gene relationship</h4>
+
+<p>
+Relationship "gene" has the columns:
+</p>
+
+<ol>
+<li value="3">gene id</li>
+</ol>
+
+<p>
+This indicates that the gene with <tt>gene id</tt> belongs to
+family <tt>famid</tt>.
+</p>
+
+<h4>spec (speciation/ortholog) relationship</h4>
+<p>
+Relationship "spec" (speciation) has the columns:
+</p>
+
+<ol>
+  <li value="3">gene1,gene2,gene3,...  genes on the left side of a speciation node</li>
+  <li>geneA,geneB,geneC,...  genes on the right side of a speciation node</li>
+  <li>species id</li>
+</ol>
+
+<p>
+Two genes are defined to be <em>orthologs</em> if their most recent common
+ancestor (MRCA) is a speciation node in the gene tree. The "spec"
+relationship specifies a speciation node that reconciles to the
+species <tt>species id</tt> and it also indicates all the descendants
+in its left (column 3) and right (column 4) subtrees. Therefore, every
+pair of genes from column 3 and column 4 is an ortholog pair. The
+ortholog pairs for the above example are:
+</p>
+
+<pre>
+gene1 geneA
+gene1 geneB
+gene1 geneC
+gene2 geneA
+gene2 geneB
+gene2 geneC
+gene3 geneA
+gene3 geneB
+gene3 geneC
+</pre>
+
+
+<h4>dup (duplication/paralog) relationship</h4>
+
+<p>
+The relationship "dup" (duplication) has the columns:
+</p>
+
+<ol>
+  <li value="3">gene1,gene2,gene3,...  genes on the left side of a duplication node</li>
+  <li>geneA,geneB,geneC,...  genes on the right side of a duplication node</li>
+  <li>species id</li>
+</ol>
+
+<p>
+The "dup" relationship is defined in a veyr similar way as the "spec"
+relationship.  Two genes are defined to be <em>paralogs</em> if their most
+recent common ancestor (MRCA) is a duplication node in the gene
+tree.  The "dup" relationship specifies a duplication node that
+reconciles to the species branch <tt>species id</tt> and it also indicates
+all the descendants in its left (column 3) and right (column 4)
+subtrees. Therefore, every pair of genes from column 3 and column 4 is
+a paralog pair.
+</p>
+
+<h4>loss relationship</h4>
+
+<p>
+The relationship "loss" has the columns:
+</p>
+
+<ol>
+  <li value="3">gene node id</li>
+  <li>species branch id</li>
+</ol>
+
+<p>
+The loss relationship indicates that a gene was lost in this gene
+family (<tt>famid</tt>).  Column 3 gives the node id in the gene tree where
+an addition branch was expected to branch off, but is not present because it
+has been lost.  Column 4 gives the species branch in which the gene loss
+occurred.
+</p>
+
+<h4>Complete example</h4>
+
+<p>
+For example of a complete relation file for a single gene family, see
+the <a href="#fig-rel">figure</a> below.  The relation file format is
+also designed to store the relationships of multiple gene families at
+the same time.  Simply use a a unique <tt>famid</tt> in column 1 for each 
+gene family.
+</p>
+
+<a name="fig-rel"></a>
 <div class="figure">
 
 <div class="code"><pre>
@@ -393,10 +521,36 @@ file format called a <em>relations file</em>.
 <img src="figures/gene-tree.png">
 
 <div class="figcaption">
-<span class="figtitle">Figure: Example relations *.rel.txt file.</span>
+<span class="figtitle">Figure: Example relation file (*.rel.txt)</span>
+The relation file (top) describes on each line a different gene relationship 
+that exists in the gene family (below).</span>
 </div>
 </div>
 
+
+<h4>Special note about gene id ordering</h4>
+
+<p>
+Often times users will want to compare different relation files
+generated for the same gene families.  For example, one might want to
+compare the true relationships from a simulated data set and the
+reconstructed relationships using DLCoalRecon or another method.  This
+can be done using
+the <a href="#sec-prog-tree-relations-cmp"><tt>tree-relations-cmp</tt></a>
+program, which can directly compare two relation files.
+</p>
+
+<p>
+In order to facilitate comparison of relation files the 
+<a href="#sec-prog-tree-relations"><tt>tree-relations</tt></a> program
+outputs gene ids for the "spec" and "dup" relationships in a
+deterministic order.  Specifically, gene ids are sorted in
+alphabetical order within columns 3 and 4 and the subtree with the
+alphabetically least gene id is given in column 3.  Therefore, we
+can define that a particular duplication is present within two different
+relation files if we have the same values for columns 3 and
+4 (and optionally 5) for a "dup" relation in both relation files.
+</p>
 
 
 </body>
