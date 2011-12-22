@@ -71,7 +71,7 @@ will be regularly updated with more information.</em>
 <a name="sec-prog"></a>
 <h2>Programs</h2>
 
-
+<!-- ===================================================================== -->
 <a name="sec-prog-dlcoal_recon"></a>
 <h3>dlcoal_recon</h3>
 
@@ -141,7 +141,7 @@ This specifies a <a href="#sec-file-smap">gene to species map</a>.
 <p>
 This specifies an effective population size N<sub>e</sub> to use for every
 branch in the species tree.  Branch-specific population sizes are 
-also <a href="#sec-file-stree-popsize">possible</a>.
+also <a href="#sec-file-stree-params">possible</a>.
 </p>
 
 <div class="code">
@@ -169,7 +169,7 @@ also <a href="#sec-file-stree-popsize">possible</a>.
 <p>
   This specifies the generation time (years) present throughout all branches
   of the species tree.  Branch-specific generation times are also 
-  <a href="#sec-file-stree-gentime">possible</a>.
+  <a href="#sec-file-stree-params">possible</a>.
 </p>
 
 <div class="code">
@@ -264,7 +264,7 @@ Displays a help message
 
 
 <a name="sec-prog-dlcoal_recon-output"></a>
-<h4>dlcoal_recon output files</h3>
+<h4>dlcoal_recon output files</h4>
 
 <p>
 DLCoal represents the reconciliation as a tuple of four variables: the
@@ -296,11 +296,130 @@ file format</a>.</li>
 </ul>
 
 
-
+<!-- ===================================================================== -->
 <a name="sec-prog-dlcoal_sim"></a>
 <h3>dlcoal_sim</h3>
 
+<p>
+The <tt>dlcoal_sim</tt> program simulates gene trees using the DLCoal model.
+The program takes the following arguments:
+</p>
 
+
+<div class="code">
+  -o OUTPUT_DIR, --outputdir=OUTPUT_DIR
+</div>
+
+<p>
+  This specifies the output directory for the simulation files.
+</p>
+
+<div class="code">
+  -s SPECIES_TREE, --stree=SPECIES_TREE
+</div>
+
+<p>
+  This specifies the <a href="#sec-file-stree">species tree</a>
+  in <a href="http://en.wikipedia.org/wiki/Newick_format">Newick
+  format</a>.  The branch lengths should be specified in millions of years
+  (myr).
+</p>
+
+<div class="code">
+  -n POPULATION_SIZE, --popsize=POPULATION_SIZE
+</div>
+
+<p>
+  This specifies the effective population size (N<sub>e</sub>) present
+  in every branch of the species tree.
+</p>
+
+<div class="code">
+  -D DUPLICATION_RATE, --duprate=DUPLICATION_RATE
+</div>
+
+<p>
+  This species the rate of a gene duplication (dups/gene/myr) present in
+  every branch of the species tree.
+</p>
+
+<div class="code">
+  -L LOSS_RATE, --lossrate=LOSS_RATE
+</div>
+
+<p>
+  This specifies the rate of gene loss (losses/gene/myr) present in every
+  branch of the species tree.
+</p>
+
+<div class="code">
+  -g GENRATION_TIME, --gentime=GENRATION_TIME
+</div>
+
+<p>
+  This specifies the generation time (years) for every branch in the species 
+  tree.
+</p>
+
+<div class="code">
+  -i NUMBER_OF_SIMULATION, --iter=NUMBER_OF_SIMULATION
+</div>
+
+<p>
+  This specifies the number of simulationed gene trees to create.
+</p>
+
+<div class="code">
+  --minsize=MIN_NUMBER_OF_LEAVES
+</div>
+
+<p>
+  This specifies the minimum number of genes required per family.
+  If a family is simulated with fewer genes (due to gene losses), the family
+  is rejected and and re-simulated.
+</p>
+
+<div class="code">
+  -h, --help
+</div>
+
+<p>
+  If given, show the help message.
+</p>
+
+
+<h4>Output files</h4>
+
+<p>
+<tt>dlcoal_sim</tt> will produce several simulated gene families each
+stored in their own directory as follows:  
+</p>
+
+<ul>
+  <li><tt>DATADIR/FAMID/FAMID.coal.tree</tt>: a gene tree stored in
+  <a href="http://en.wikipedia.org/wiki/Newick_format">Newick format</a>.</li>
+  <li><tt>DATADIR/FAMID/FAMID.coal.recon</tt>:
+  a <a href="#sec-file-recon">reconciliation mapping</a> of the gene
+  tree to the locus tree.</li>
+  <li><tt>DATADIR/FAMID/FAMID.locus.tree</tt>: a locus tree stored in 
+    <a href="http://en.wikipedia.org/wiki/Newick_format">Newick format</a>.</li>
+  <li><tt>DATADIR/FAMID/FAMID.locus.recon</tt>: 
+    a <a href="#sec-file-recon">reconciliation mapping</a> of the locus tree
+    to the species tree.</li>
+  <li><tt>DATADIR/FAMID/FAMID.daughters</tt>: a set
+  of <a href="#sec-file-daughters">daughter nodes</a> in the locus
+  tree.</li>
+</ul>
+
+<p>
+The base directory <tt>DATADIR</tt> is specified by the <tt>-d</tt> option and
+each directory <tt>FAMID</tt> is numbered between 0 and value specified by
+the <tt>-i</tt> option.
+</p>
+
+
+
+<!-- ===================================================================== -->
 <a name="sec-prog-tree-relations"></a>
 <h3>tree-relations</h3>
 
@@ -378,7 +497,7 @@ a <a href="#sec-file-recon">relation file (*.rel.txt)</a>.
   If given, show the help message.
 </p>
 
-
+<!-- ===================================================================== -->
 <a name="sec-prog-tree-relations-cmp"></a>
 <h3>tree-relations-cmp</h3>
 
@@ -574,16 +693,99 @@ If ancestral nodes are named, they will be used in the output of the
 </div>
 
 
-<a name="sec-file-stree-popsize"></a>
-<h4>Branch-specific population sizes</h4>
+<a name="sec-file-stree-params"></a>
+<h4>Branch-specific parameters</h4>
 
-XXX
+<p>
+Several parameters for DLCoal can be specified in a branch-specific way.
+Currently, the effective population size and generation time parameters
+can be configured in this way.  This is done by using the comment section
+within the species tree newick file.  The comment section has the format:
+</p>
+
+<div class="code">
+[&&NHX:key1=val1:key2=val2]
+</div>
+
+<p>
+where <tt>&&NHX:</tt> must appear first followed by a series of key-value
+pairs each of which are separated by colons ":".  One comment section
+can appear after every node in the newick file.  For example, the following
+species tree has comments after every node:
+</p>
+
+<div class="code"><pre>
+(
+ scer:610.916819[&&NHX:g=0.9:pop=10000000.0],
+ (
+  (
+   cjaponica:66.116017[&&NHX:g=0.166666666667:pop=50000],
+   (
+    celegans:18.0[&&NHX:g=0.166666666667:pop=50000],
+    (
+     cbrenneri:15.79308[&&NHX:g=0.166666666667:pop=50000],
+     (
+      cremanei:13.973676[&&NHX:g=0.166666666667:pop=50000],
+      cbriggsae:13.973676[&&NHX:g=0.166666666667:pop=50000]
+     ):1.819404[&&NHX:g=0.166666666667:pop=50000]
+    ):2.20692[&&NHX:g=0.166666666667:pop=50000]
+   ):48.116017[&&NHX:g=0.166666666667:pop=50000]
+  ):386.30503[&&NHX:g=0.166666666667:pop=50000],
+  (
+   (
+    (
+     dgri:38.152242[&&NHX:g=0.1:pop=10000000.0],
+     (
+      dmoj:26.13958[&&NHX:g=0.1:pop=10000000.0],
+      dvir:26.13958[&&NHX:g=0.1:pop=10000000.0]
+     ):12.012662[&&NHX:g=0.1:pop=10000000.0]
+    ):23.847758[&&NHX:g=0.1:pop=10000000.0],
+    (
+     dwil:54.260773[&&NHX:g=0.1:pop=10000000.0],
+     (
+      (
+       dpse:2.112373[&&NHX:g=0.1:pop=10000000.0],
+       dper:2.112373[&&NHX:g=0.1:pop=10000000.0]
+      ):40.180327[&&NHX:g=0.1:pop=10000000.0],
+      (
+       dana:30.860312[&&NHX:g=0.1:pop=10000000.0],
+       (
+        (
+         dyak:7.966764[&&NHX:g=0.1:pop=10000000.0],
+         dere:7.966764[&&NHX:g=0.1:pop=10000000.0]
+        ):3.264526[&&NHX:g=0.1:pop=10000000.0],
+        (
+         (
+          dsim:2.743866[&&NHX:g=0.1:pop=10000000.0],
+          dsec:2.743866[&&NHX:g=0.1:pop=10000000.0]
+         ):2.968142[&&NHX:g=0.1:pop=10000000.0],
+         dmel:5.712008[&&NHX:g=0.1:pop=10000000.0]
+        ):5.519282[&&NHX:g=0.1:pop=10000000.0]
+       ):19.629022[&&NHX:g=0.1:pop=10000000.0]
+      ):11.432388[&&NHX:g=0.1:pop=10000000.0]
+     ):11.968073[&&NHX:g=0.1:pop=10000000.0]
+    ):7.739227[&&NHX:g=0.1:pop=10000000.0]
+   ):217.014905[&&NHX:g=0.1:pop=10000000.0],
+   (
+    mouse:75.0[&&NHX:g=0.5:pop=460000],
+    human:75.0[&&NHX:g=25:pop=10400]
+   ):204.014905[&&NHX:g=12.75:pop=235200.0]
+  ):173.406143[&&NHX:g=6.425:pop=5117600.0]
+ ):158.495771[&&NHX:g=3.29583333333:pop=2583800.0]
+):0[&&NHX:g=2.09791666667:pop=6291900.0];
+</pre></div>
+
+<p>
+The following keys are currently supported by 
+<a href="#sec-prog-dlcoal_recon"><tt>dlcoal_recon</tt></a>:
+</p>
+
+<ul>
+  <li><tt>g</tt>: generation time in years.</li>
+  <li><tt>pop</tt>: effective population size.</li>
+</ul>
 
 
-<a name="sec-file-stree-gentime"></a>
-<h4>Branch-specific generation times</h4>
-
-XXX
 
 
 <!-- ====================================================================== -->

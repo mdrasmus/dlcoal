@@ -24,21 +24,28 @@ import dlcoal.sim
 
 o = optparse.OptionParser()
 o.add_option("-o", "--outputdir", dest="outputdir",
-             metavar="OUTPUT_DIR", default="simulations")
-o.add_option("-s", "--stree", dest="stree", metavar="SPECIES_TREE")
+             metavar="OUTPUT_DIR", default="simulations",
+             help="output directory for simulation files")
+o.add_option("-s", "--stree", dest="stree", metavar="SPECIES_TREE",
+             help="species tree file in newick format (myr)")
 o.add_option("-n", "--popsize", dest="popsize", metavar="POPULATION_SIZE",
-             type="float")
+             type="float",
+             help="Effective population size")
 o.add_option("-D", "--duprate", dest="duprate", metavar="DUPLICATION_RATE",
-             type="float")
+             type="float",
+             help="rate of a gene duplication (dups/gene/myr)")
 o.add_option("-L", "--lossrate", dest="lossrate", metavar="LOSS_RATE",
-             type="float")
+             type="float",
+             help="rate of gene loss (losses/gene/myr)")             
 o.add_option("-g", "--gentime", dest="gentime", metavar="GENRATION_TIME",
-             type="float")
+             type="float",
+             help="generation time (years)")             
 o.add_option("-i", "--iter", dest="iter", metavar="NUMBER_OF_SIMULATION",
-             type="int", default=1)
+             type="int", default=1,
+             help="number of simulationed gene trees to create")
 o.add_option("", "--minsize", dest="minsize", metavar="MIN_NUMBER_OF_LEAVES",
-             type="int", default=0)
-
+             type="int", default=0,
+             help="minimum number of genes required per family")
 
 conf, args = o.parse_args()
 
