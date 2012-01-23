@@ -1,7 +1,7 @@
 #
 # DLCoal
 # Matt Rasmussen
-# Copyright 2010
+# Copyright 2012
 #
 # Makefile
 #

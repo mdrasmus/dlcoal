@@ -14,7 +14,7 @@ DLCoalRecon's unique feature is that it can perform reconciliation despite
 the presence of incomplete linegae sorting.
 
 DLCoal citation: 
-Rasmussen, Kellis.  A unified model of gene duplication, loss, and coalescence using a locus tree. 2012
+Rasmussen, Kellis.  A unified model of gene duplication, loss, and coalescence using a locus tree. Genome Research. 2012.
 
 
 =============================================================================

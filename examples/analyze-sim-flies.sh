@@ -50,12 +50,14 @@ mkdir -p data/flies-rel
 ../bin/dlcoal_sim -i 100 -s config/flies.stree  \
     -n 1e7 -D .0012 -L .0011 -g .1 -o data/flies
 
-# or you can untar a ready-made simulated dataset
-
+# or you can untar a pre-made simulated dataset
+tar -C data -xvf data/flies.tar.gz
 
 
 # view a simulation
+#  From top to bottom: species tree, locus tree, gene tree.
 ../bin/view_recon -s config/flies.stree -g .1 data/flies/0/0
+
 
 
 # get real relations
@@ -113,7 +115,7 @@ cat data/flies-rel/flies.mpr.rel-summary.txt
 #=============================================================================
 # run dlcoal_recon
 
-# example of running dlcoal once
+# example of running dlcoal for one gene family
 ../bin/dlcoal_recon -i 100 --nsamples 1 \
         -s config/flies.stree -S config/flies.smap \
         -n 1e7 -D .0012 -L .0011 -g .1 -I .coal.tree -O .dlcoal \
