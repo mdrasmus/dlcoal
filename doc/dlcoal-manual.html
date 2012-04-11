@@ -521,7 +521,7 @@ relations reconstructed by a program like <tt>dlcoal_recon</tt>.  The
 output of the program will look something like the following:
 </p>
 
-<div class="code"><pre>
+<pre class="code">
 dup actual:     46
 dup pred:       49
 dup sn:         0.95652173913
@@ -535,7 +535,7 @@ orth pred:      6758
 orth sn:        0.985414235706
 orth ppv:       0.999704054454
 </pre>
-</div>
+
 
 <p>
 This output describes the performance of the reconciliation algorithm compared
@@ -638,7 +638,7 @@ If ancestral nodes are named, they will be used in the output of the
 <a name="fig-stree"></a>
 <div class="figure">
 
-<div class="code"><pre>
+<pre class="code">
 (((((((scer:7.061760,
        spar:7.061760
       )n7:4.999680,
@@ -679,7 +679,7 @@ If ancestral nodes are named, they will be used in the output of the
  )n10:77.941620
 )n1;
 </pre>
-</div>
+
 
 <img src="figures/fungi-stree.png">
 
@@ -715,7 +715,7 @@ can appear after every node in the newick file.  For example, the following
 species tree has comments after every node:
 </p>
 
-<div class="code"><pre>
+<pre class="code">
 (
  scer:610.916819[&&NHX:g=0.9:pop=10000000.0],
  (
@@ -774,7 +774,7 @@ species tree has comments after every node:
   ):173.406143[&&NHX:g=6.425:pop=5117600.0]
  ):158.495771[&&NHX:g=3.29583333333:pop=2583800.0]
 ):0[&&NHX:g=2.09791666667:pop=6291900.0];
-</pre></div>
+</pre>
 
 <p>
 The following keys are currently supported by 
@@ -830,7 +830,7 @@ instead of <tt>"scer"</tt>, because the pattern <tt>"YALI*"</tt> occurs before
 <a name="fig-smap"></a>
 <div class="figure">
 
-<div class="code"><pre>
+<pre class="code">
 A*      agos
 orf19*  calb
 CDUG_*  cdub
@@ -845,7 +845,7 @@ SCP*    spom
 YALI*   ylip
 Y*      scer
 Q*      scer
-</pre></div>
+</pre>
 
 <div class="figcaption">
 <span class="figtitle">Figure: Example *.smap file.</span> This file
@@ -905,7 +905,7 @@ where <tt>XXX</tt> is the preorder traversal of the internal nodes.
 <a name="fig-recon"></a>
 <div class="figure">
 
-<div class="code"><pre>
+<pre class="code">
 KLLA0C08239g  klac  gene  
 ADL072C       agos  gene  
 kwal_5828     kwal  gene  
@@ -927,7 +927,7 @@ n4            n3    spec
 n3            n9    spec  
 n2            n8    spec  
 n1            n2    spec  
-</pre></div>
+</pre>
 
 <img src="figures/gene-tree.png">
 
@@ -1105,7 +1105,7 @@ gene family.
 <a name="fig-rel"></a>
 <div class="figure">
 
-<div class="code"><pre>
+<pre class="code">
 100.yeast.tree	gene	YER061C
 100.yeast.tree	gene	spar_6281
 100.yeast.tree	gene	smik_6662
@@ -1128,7 +1128,7 @@ gene family.
 100.yeast.tree	spec	CAGL0J02970g	YER061C,sbay_7037,sbay_7039,smik_6659,smik_6662,spar_6281	n4
 100.yeast.tree	spec	YER061C,smik_6662,spar_6281	sbay_7039	n5
 100.yeast.tree	loss	smik_6659	n7
-</pre></div>
+</pre>
 
 
 <img src="figures/gene-tree.png">
