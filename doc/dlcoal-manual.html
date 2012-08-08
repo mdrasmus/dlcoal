@@ -62,11 +62,6 @@ the <a href="../examples/">examples</a> directory
 (e.g. <a href="../examples/analyze-sim-flies.sh">analyze-sim-flies.sh</a>).
 </p>
 
-<p>
-<em>Note: This documentation is currently under development and
-will be regularly updated with more information.</em>
-</p>
-
 
 <!-- ===================================================================== -->
 <a name="sec-prog"></a>
@@ -878,9 +873,9 @@ format is tab-delimited, where each line has three fields:
 
 <p>
 Each line specifies the mapping of one node in the gene tree (field 1) to one 
-node or branch in the species tree (field 2).  Branches are indicate using
+node or branch in the species tree (field 2).  Branches are indicated using
 the node ID directly below it (i.e. the younger of the two incident nodes).
-The lines can be given in any order.
+The lines can be given in any order within the file.
 </p>
 
 <p>
@@ -889,7 +884,7 @@ and the event field will contain the event <tt>"gene"</tt>.  All
 internal nodes of the gene tree are marked either as speciations
 (event <tt>"spec"</tt>) or duplications (event <tt>"dup"</tt>).
 Specaition nodes map directly to the indicated species node, and
-duplication nodes map to the indication species branch.  The time of
+duplication nodes map to the indicated species branch.  The time of
 the duplication along the species branch is not indicated in this file
 format nor is it inferred by DLCoal.  If the event is unknown or represents
 coalescence the <tt>"none"</tt> keyword is used in column 3.
@@ -1170,7 +1165,7 @@ relation files if we have the same values for columns 3 and
 <h2>References</h2>
 
 <ul>
-  <li><a name="cite-Rasmussen2012"></a>Matthew D. Rasmussen and Manolis Kellis. A unified model for gene duplication, loss, and coalescence using a locus tree. in prep. 2012.</li>
+  <li><a name="cite-Rasmussen2012"></a>Matthew D. Rasmussen and Manolis Kellis. Unified modeling of gene duplication, loss, and coalescence using a locus tree. Genome Research. 2012.</li>
 </ul>
 
 </body>
