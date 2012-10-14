@@ -51,41 +51,49 @@ conf, args = o.parse_args()
 
 
 #=============================================================================
+
+def error(msg):
+    print >>sys.stderr, msg
+    sys.exit(1)
+
+#=============================================================================
 # read inputs
 
+if not conf.stree:
+    error("species tree --stree is required")
 stree = treelib.read_tree(conf.stree)
 outdir = conf.outputdir
 
 # convert species tree into generations
+if not conf.gentime:
+    error("generation time --gentime is required")
 for node in stree:
     node.dist *= 1e6 / conf.gentime
 duprate = conf.duprate / (1e6 / conf.gentime)
 lossrate = conf.lossrate / (1e6 / conf.gentime)
 times = treelib.get_tree_timestamps(stree)
 
+# get popsizes
+#  NOTE: popsize is multiplied by 2 to account for diploid species.
+#  Currently, branch-specific generation times are not supported
+gentimes = {}
+if conf.popsize is None:
+    popsizes = {}
+    for node in stree:
+        popsizes[node.name] = (2 * float(node.data["pop"]))
+        gentimes[node.name] = node.data.get("g", conf.gentime)
+
+    if len(set(gentimes.values())) != 1:
+        error("branch-specific generation times are not currently supported")
+else:
+    popsizes = 2 * conf.popsize
+
+
 #=============================================================================
 # perform simulations
 
-# NOTE: use 2*n for diploid species
 dlcoal.sim.dlcoal_sims(
-    outdir, conf.iter, stree, 2*conf.popsize, duprate, lossrate,
+    outdir, conf.iter, stree, popsizes, duprate, lossrate,
     minsize=conf.minsize)
 
 
-'''
-
-# get popsizes
-#  NOTE: popsize is multiplied by 2 to account for diploid species.
-#  Also popsize scaled to fit species tree time units
-#  (* generation time / 1e6)
-#  This is done in order to allow different generation times per species
-#  tree branch, and keeps all trees (gene, locus, species) ultrametric.
-if conf.popsize is None:
-    # scale popsizes by generation time
-    popsizes = {}
-    for node in stree:
-        popsizes[node.name] = (2 * float(node.data["pop"]) *
-                               float(node.data["g"]) / 1e6)
-else:
-    popsizes = 2 * conf.popsize * conf.gentime / 1e6
-'''
