@@ -64,6 +64,7 @@ if not conf.stree:
 stree = treelib.read_tree(conf.stree)
 outdir = conf.outputdir
 
+"""
 # convert species tree into generations
 if not conf.gentime:
     error("generation time --gentime is required")
@@ -87,7 +88,31 @@ if conf.popsize is None:
         error("branch-specific generation times are not currently supported")
 else:
     popsizes = 2 * conf.popsize
+"""
 
+# convert species tree into generations
+#for node in stree:
+#    node.dist *= 1e6 / conf.gentime
+#duprate = conf.duprate / (1e6 / conf.gentime)
+#lossrate = conf.lossrate / (1e6 / conf.gentime)
+#times = treelib.get_tree_timestamps(stree)
+
+#for node in stree:
+#    node.dist *= 1e6 / conf.gentime
+duprate = conf.duprate# / (1e6 / conf.gentime)
+lossrate = conf.lossrate# / (1e6 / conf.gentime)
+times = treelib.get_tree_timestamps(stree)
+
+# get popsizes
+#  NOTE: popsize is multiplied by 2 to account for diploid species
+if conf.popsize is None:
+    # scale popsizes by generation time
+    popsizes = {}
+    for node in stree:
+        popsizes[node.name] = (2 * float(node.data["pop"]) *
+	                      float(node.data["g"]) / 1e6)
+else:
+    popsizes = 2 * conf.popsize * conf.gentime / 1e6
 
 #=============================================================================
 # perform simulations

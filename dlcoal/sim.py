@@ -44,6 +44,14 @@ def sample_dlcoal(stree, n, duprate, lossrate, namefunc=lambda x: x,
         if len(locus_tree.leaves()) >= minsize:
             break
 
+    # if n is a dict, update it with gene names from locus tree
+    if isinstance(n, dict):
+        n = {}
+        for node, snode in locus_recon.iteritems():
+            n2[node.name] = n[snode.name]
+    else:
+        n2 = n
+        	                
     if len(locus_tree.nodes) <= 1:
         # total extinction
         coal_tree = treelib.Tree()
@@ -62,10 +70,10 @@ def sample_dlcoal(stree, n, duprate, lossrate, namefunc=lambda x: x,
         if reject:
             # use slow rejection sampling (for testing)
             coal_tree, coal_recon = sample_multilocus_tree_reject(
-                locus_tree, n, daughters=daughters, namefunc=namefunc)
+                locus_tree, n2, daughters=daughters, namefunc=namefunc)
         else:
             coal_tree, coal_recon = sample_multilocus_tree(
-                locus_tree, n, daughters=daughters, namefunc=namefunc)
+                locus_tree, n2, daughters=daughters, namefunc=namefunc)
 
         # clean up coal tree
         if remove_single:
