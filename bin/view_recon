@@ -36,6 +36,10 @@ o.add_option("-c", "--nocoal", dest="nocoal", action="store_true")
 
 
 g = optparse.OptionGroup(o, "Miscellaneous")
+g.add_option("--names", dest="names",
+             action="store_true",
+	     default=False,
+	     help="display internal node names")
 g.add_option("-S", "--smap", dest="smap", metavar="GENE_TO_SPECIES_MAP")
 g.add_option("--cscale", dest="cscale", metavar="COAL_SCALE",
              type="float")
@@ -51,6 +55,23 @@ conf, args = o.parse_args()
 
 
 #=============================================================================
+
+def get_branch_labels(tree):
+    
+    # init labels
+    labels = {}
+    for node in tree.nodes.values():
+        labels[node.name] = ""
+
+    # create branch labels
+    for node in tree.nodes.values():
+
+        # label node names
+        if conf.names and not node.is_leaf():
+            labels[node.name] = "[%s] %s" % (node.name, 
+                                             labels[node.name])
+
+    return labels
 
 def draw_dlcoal_recon(
     coal_tree, coal_recon,
@@ -137,19 +158,25 @@ def draw_dlcoal_recon(
 
 
     # draw stree
-    treesvg.draw_tree(stree, layout=stree_layout,
+    treesvg.draw_tree(stree,
+                      labels=get_branch_labels(stree),
+                      layout=stree_layout,
                       xscale=xscale, yscale=yscale,
                       canvas=canvas,
                       tmargin=0, lmargin=0)
 
     # draw locus tree
-    treesvg.draw_tree(locus_tree, layout=locus_tree_layout,
+    treesvg.draw_tree(locus_tree,
+                      labels=get_branch_labels(locus_tree),
+                      layout=locus_tree_layout,
                       xscale=xscale, yscale=yscale,
                       tmargin=0, lmargin=0,
                       canvas=canvas)
 
     # draw coal tree
-    treesvg.draw_tree(coal_tree, layout=coal_tree_layout,
+    treesvg.draw_tree(coal_tree,
+                      labels=get_branch_labels(coal_tree),
+                      layout=coal_tree_layout,
                       xscale=xscale, yscale=yscale,
                       tmargin=0, lmargin=0,
                       canvas=canvas)
@@ -239,13 +266,17 @@ def draw_tree_recon(
 
 
     # draw stree
-    treesvg.draw_tree(stree, layout=stree_layout,
+    treesvg.draw_tree(stree,
+                      labels=get_branch_labels(stree),
+                      layout=stree_layout,
                       xscale=xscale, yscale=yscale,
                       canvas=canvas,
                       tmargin=0, lmargin=0)
 
     # draw locus tree
-    treesvg.draw_tree(locus_tree, layout=locus_tree_layout,
+    treesvg.draw_tree(locus_tree,
+                      labels=get_branch_labels(locus_tree),
+                      layout=locus_tree_layout,
                       xscale=xscale, yscale=yscale,
                       tmargin=0, lmargin=0,
                       canvas=canvas)
@@ -415,7 +446,7 @@ def show_log(data, coal_tree, stree,
     if not conf.nocoal:
         coal_recon, coal_events = parse_recon(data["coal_recon"], [],
                                               coal_tree, locus_tree)
-        treelib.reorder_tree(coal_tree, locus_tree, reroot=False)
+        treelib.reorder_tree(coal_tree, locus_tree, root=False)
 
     if conf.xscale is None:
         try:

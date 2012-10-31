@@ -317,7 +317,7 @@ def read_dlcoal_recon(filename, stree,
     extra["coal_recon"], junk = phylo.read_recon_events(
         filenames.get("coal_recon", filename + exts["coal_recon"]),
         coal_tree, extra["locus_tree"])
-    extra["locus_recon"], extra["locus_events"] = phylo.read_recon(
+    extra["locus_recon"], extra["locus_events"] = phylo.read_recon_events(
         filenames.get("locus_recon", filename + exts["locus_recon"]),
         extra["locus_tree"], stree)
 
