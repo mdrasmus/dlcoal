@@ -133,7 +133,7 @@ else:
 
 # set random seed
 if conf.seed is None:
-    conf.seed = int(time.time() * 100)
+    conf.seed = int(time.time() * 100) % sys.maxint
 random.seed(conf.seed)
 if dlcoal.dlcoalc:
     dlcoal.dlcoalc.srand(conf.seed)
